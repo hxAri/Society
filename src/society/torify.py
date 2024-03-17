@@ -1,3 +1,26 @@
+#!/usr/bin/env python3
+
+#
+# @author Ari Setiawan
+# @create 12.01-2024 14:31
+# @github https://github.com/hxAri/Society
+#
+# Society Copyright (c) 2024 - Ari Setiawan <hxari@proton.me>
+# Society Licence under GNU General Public Licence v3
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# any later version.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+#
+# Society Program is not affiliated with or endorsed, endorsed at all by
+# Facebook or any other party, if you use the main account to use this
+# tool we as Coders and Developers are not responsible for anything,
+# use it at your own risk, and this is Strictly not for SPAM.
+#
 
 from builtins import bool as Bool, int as Int, str as Str
 from socks import ProxyConnectionError
@@ -30,7 +53,6 @@ class Torify:
 		try:
 			response = request( "GET", "https://api.ipify.org/?format=json", proxies=proxies )
 			if response is not None:
-				# Logging.info( "{}", response.text )
 				if complex is True:
 					address = response.json()['ip']
 					
@@ -39,7 +61,9 @@ class Torify:
 					get the IP address information, the Tor proxy is often hit or 
 					detected and cannot get the IP address information.
 					"""
-					response = request( "GET", f"https://ipapi.co/{address}/json" )
+					
+					# response = request( "GET", f"https://ipapi.co/{address}/json" )
+					response = request( "GET", f"http://ip-api.com/json/{address}" )
 					if response is None:
 						return None
 					# Logging.info( "{}", response.text, start="\x0d" )
@@ -73,7 +97,7 @@ class Torify:
 		if ipInfo is None:
 			Logging.error( "Failed getting IP Address info", start="\x0d" )
 			return None
-		previousIp = ipInfo['ip']
+		previousIp = ipInfo['ip'] if "ip" in ipInfo else ipInfo['query']
 		Logging.info( "Trying to re-new IP Address address={}", previousIp, start="\x0d" )
 		try:
 			with Controller.from_port( port=port ) as controller:
@@ -91,7 +115,7 @@ class Torify:
 		if ipInfo is None:
 			Logging.error( "Failed getting IP Address info", start="\x0d" )
 			return None
-		currentIp = ipInfo['ip']
+		currentIp = ipInfo['ip'] if "ip" in ipInfo else ipInfo['query']
 		if currentIp != previousIp:
 			Logging.info( "The IP Address has been updated from={} to={}", previousIp, currentIp, start="\x0d" )
 			return ipInfo
