@@ -54,17 +54,19 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 	for jobdesk in jobdesks:
 		results = None
 		tokenName = snakeCase( jobdesk['name'] )
+		tokenKeysets = jobdesk['keysets']
 		if tokenName not in kwargs or tokenName in kwargs and not kwargs[tokenName]:
 			continue
 		tokenValue = kwargs[tokenName]
 		if isinstance( tokenValue, Str ):
-			tokenMatched = search( jobdesk['pattern'], tokenValue )
+			tokenMatched = search( jobdesk['pattern'], tokenValue if not isinstance( tokenValue, str ) else f"{tokenValue}" if tokenValue is not None else "" )
 			if tokenMatched is None:
 				Logging.error( "Invalid option value for --{}", tokenName.replace( "_", "-" ), close=1 )
 			tokenMatches = tokenMatched.groupdict()
 		else:
 			tokenMatches = {}
-		tokenKeysets = jobdesk['keysets']
+			if tokenKeysets:
+				tokenMatches[list( tokenKeysets.keys() )[0]] = tokenValue
 		if "requires" in jobdesk and isinstance( jobdesk['requires'], list ):
 			for tokenRequire in jobdesk['requires']:
 				tokenNameRequire = snakeCase( tokenRequire['name'] )
@@ -86,8 +88,11 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 					if bool in tokenKeysets[tokenKeyset]:
 						Logging.error( "The Boolean convertion can't use in multiple convertion value", close=1 )
 					for tokenType in tokenKeysets[tokenKeyset]:
-						if tokenType is int and tokenParams[tokenKeyset] is not None and tokenParams[tokenKeyset].isnumeric():
-							tokenParams[tokenKeyset] = tokenType( tokenParams[tokenKeyset] )
+						if tokenType is int:
+							if tokenParams[tokenKeyset] is not None and isinstance( tokenParams[tokenKeyset], str ) and tokenParams[tokenKeyset].isnumeric():
+								tokenParams[tokenKeyset] = tokenType( tokenParams[tokenKeyset] )
+							elif tokenParams[tokenKeyset] is not None and isinstance( tokenParams[tokenKeyset], int ):
+								tokenParams[tokenKeyset] = tokenParams[tokenKeyset]
 				elif isinstance( tokenTyping, type ) or callable( tokenTyping ):
 					if tokenParams[tokenKeyset] is not None:
 						if tokenTyping is bool:
