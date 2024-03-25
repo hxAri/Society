@@ -25,23 +25,24 @@
 from builtins import int as Int, str as Str
 from concurrent.futures import Future, ThreadPoolExecutor
 from json import loads as decoder
-from re import search
 from time import sleep
 from traceback import format_exc
-from typing import Any, Callable, Dict, Iterable, List, Literal
+from typing import Any, Callable, Iterable, List, Literal
 
 from society.common import snakeCase, typeof
 from society.logging import Logging
 from society.typing.builtins import Val
+from society.typing.jobdesk import Jobdesk
 from society.typing.result import Result
 from society.typing.threading import Threading
 
-def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, **kwargs:Any ) -> Iterable[Result[Literal['operation'],Val]]:
+
+def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, **kwargs:Any ) -> Iterable[Result[Literal['operation'],Val]]:
 
 	"""
 	Automation Command Line Execution
 
-	:params List<Dict<Str, Any>> jobdesks
+	:params List<Jobdesk> jobdesks
 	:params Int sleepy
 	:params Int worker
 	:params Int workerDelays
@@ -53,24 +54,30 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 	
 	for jobdesk in jobdesks:
 		results = None
-		tokenName = snakeCase( jobdesk['name'] )
-		tokenKeysets = jobdesk['keysets']
+		tokenName = snakeCase( jobdesk.name )
+		tokenKeysets = jobdesk.keysets
 		if tokenName not in kwargs or tokenName in kwargs and not kwargs[tokenName]:
 			continue
 		tokenValue = kwargs[tokenName]
 		if isinstance( tokenValue, Str ):
-			tokenMatched = search( jobdesk['pattern'], tokenValue if not isinstance( tokenValue, str ) else f"{tokenValue}" if tokenValue is not None else "" )
+			tokenMatched = jobdesk.pattern.search( tokenValue \
+				if not isinstance( tokenValue, str ) \
+				else \
+					f"{tokenValue}" \
+				if tokenValue is not None else \
+					"" 
+			)
 			if tokenMatched is None:
-				Logging.error( "Invalid option value for --{}", tokenName.replace( "_", "-" ), close=1 )
+				Logging.error( "Invalid option value for --{}", tokenName.replace( "\x5f", "\x2d" ), close=1 )
 			tokenMatches = tokenMatched.groupdict()
 		else:
 			tokenMatches = {}
 			if tokenKeysets:
 				tokenMatches[list( tokenKeysets.keys() )[0]] = tokenValue
-		if "requires" in jobdesk and isinstance( jobdesk['requires'], list ):
-			for tokenRequire in jobdesk['requires']:
-				tokenNameRequire = snakeCase( tokenRequire['name'] )
-				tokenKeyset = tokenRequire['keyset']
+		if isinstance( jobdesk.requires, list ) and all( isinstance( r, Jobdesk.Require ) for r in jobdesk.requires ):
+			for tokenRequire in jobdesk.requires:
+				tokenNameRequire = snakeCase( tokenRequire.name )
+				tokenKeyset = tokenRequire.keyset
 				if tokenNameRequire in kwargs and kwargs[tokenNameRequire]:
 					tokenMatches[tokenKeyset] = kwargs[tokenNameRequire]
 		tokenParams = {}
@@ -81,8 +88,8 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 			try:
 				tokenTyping = tokenKeysets[tokenKeyset]
 				tokenParams[tokenKeyset] = tokenMatches[tokenKeyset]
-				if "escapes" in jobdesk and isinstance( jobdesk['escapes'], list ):
-					for escape in jobdesk['escapes']:
+				if isinstance( jobdesk.escapes, list ):
+					for escape in jobdesk.escapes:
 						tokenParams[tokenKeyset] = tokenParams[tokenKeyset].replace( f"\\{escape}", escape )
 				if isinstance( tokenTyping, list ):
 					if bool in tokenKeysets[tokenKeyset]:
@@ -118,15 +125,15 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 			except ValueError as e:
 				Logging.error( "Uncaught ValueError: {}", e )
 				Logging.error( "Invalid \"{}\" value, value type must be type {}", tokenKeyset, tokenTyping.__name__.title(), close=1 )
-		tokenThread = jobdesk['thread']
-		tokenExecute = jobdesk['execute']
+		tokenThread = jobdesk.thread
+		tokenExecute = jobdesk.execute
 		if tokenThread is None:
 			results = tokenExecute( **tokenParams )
 		elif tokenThread is ThreadExecutor:
 			tokenThreadName = "Executing {execute}"
-			if "dataset" not in jobdesk or not jobdesk['dataset']:
+			if not jobdesk.dataset:
 				Logging.error( "Cannot executute {}, unknown target dataset", tokenExecute, close=1 )
-			tokenDatasetName = jobdesk['dataset']
+			tokenDatasetName = jobdesk.dataset
 			tokenDatasetValue = tokenParams[tokenDatasetName]
 			if isinstance( tokenDatasetValue, int ):
 				tokenDatasetValue = list( i for i in range( tokenDatasetValue ) )
@@ -134,9 +141,9 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 				tokenDatasetValue = [tokenDatasetValue]
 			if tokenDatasetName not in tokenParams or not tokenParams[tokenDatasetName] or not isinstance( tokenParams[tokenDatasetName], Iterable ):
 				Logging.error( "Cannot execute {}, dataset target does not iterable", tokenExecute, close=1 )
-			if "message" in jobdesk and isinstance( jobdesk['message'], dict ):
-				if "name" in jobdesk['message'] and jobdesk['message']['name']:
-					tokenThreadName = jobdesk['message']['name']
+			if isinstance( jobdesk.message, Jobdesk.Message ):
+				if jobdesk.message.name:
+					tokenThreadName = jobdesk.message.name
 			tokenFormats = { "execute": tokenExecute, **tokenParams }
 			del tokenParams[tokenDatasetName]
 			results = ThreadExecutor(
@@ -153,11 +160,11 @@ def Executor( jobdesks:List[Dict[Str,Any]], sleepy:Int=1, worker:Int=2, workerDe
 		elif tokenThread is ThreadRunner:
 			tokenLoading = "Executing {execute}"
 			tokenSuccess = None
-			if "message" in jobdesk and isinstance( jobdesk['message'], dict ):
-				if "loading" in jobdesk['message'] and jobdesk['message']['loading']:
-					tokenLoading = jobdesk['message']['loading']
-				if "success" in jobdesk['message'] and jobdesk['message']['success']:
-					tokenSuccess = jobdesk['message']['success']
+			if isinstance( jobdesk.message, Jobdesk.Message ):
+				if jobdesk.message.loading:
+					tokenLoading = jobdesk.message.loading
+				if jobdesk.message.success:
+					tokenSuccess = jobdesk.message.success
 			tokenThread = ThreadRunner(
 				target=lambda: tokenExecute( **tokenParams, thread=1 ),
 				success=tokenSuccess,
