@@ -53,10 +53,45 @@ source $virtual
 # Get the Society basepath.
 basepath=$(pwd -P)
 
-# Executing Society main program.
-python3 ${basepath}/src/society.py "$@"
+# Clean Python cache Byte-Code compiled.
+function clean() {
+	for cache in $(find ${basepath} | grep __pycache__); do
+		if [[ -d $cache ]]; then
+			rm -rf $cache
+		fi
+	done
+}
 
-# Clear the PyCache.
-if [[ $(which kurina) != "" ]]; then
-	kurina ${basepath}
+action=${1,,}
+arguments=()
+if [[ $action == "" ]]; then
+	action=running
+else
+	i=1
+	for argument in ${@}; do
+		if [[ $argument != $action ]] || [[ $i != 1 ]]; then
+			arguments+=( $argument )
+		fi
+		i=$((i+1))
+	done
 fi
+
+case ${action,,} in
+	i|install) python3 ${basepath}/setup.py install ${arguments[@]} && clean ;;
+	p|package) pip ${arguments[@]} ;;
+	r|running) python3 ${basepath}/src/society.py ${arguments[@]} && clean ;;
+	s|service) python3 ${basepath}/src/service.py ${arguments[@]} && clean ;;
+	z|zombie) python3 ${basepath}/src/zombie.py ${arguments[@]} && clean ;;
+	*)
+		echo -e ""
+		echo -e "   Society Terminal Console"
+		echo -e ""
+		echo -e "   example [command] [arguments] [--options]"
+		echo -e "   command i|install                Install Society as Python3 Module"
+		echo -e "           p|package                Pip"
+		echo -e "           r|running                Running The Society as CLI"
+		echo -e "           s|service                Running The Society as Web Service"
+		echo -e "           z|zombie                 Running The Society as Bot Telegram"
+		echo -e ""
+	;;
+esac
