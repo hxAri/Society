@@ -26,7 +26,7 @@ from builtins import int as Int, str as Str
 from concurrent.futures import Future, ThreadPoolExecutor
 from json import loads as decoder
 from time import sleep
-from traceback import format_exc
+from traceback import format_exc, format_exception
 from typing import Any, Callable, Iterable, List, Literal
 
 from society.common import snakeCase, typeof
@@ -175,11 +175,11 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 			)
 			if tokenThread.exception is not None:
 				exception = tokenThread.exception
-				Logging.error( "{}: {}", typeof( exception ), exception, close=1 )
+				Logging.error( "{}: {}", typeof( exception ), "\x0d".join( format_exception( exception ) ), close=1 )
 			results = tokenThread.returns
 		else:
 			Logging.error( "Unhandled executor runner {}", tokenThread, close=1 )
-		if results is not None and results:
+		if results is not None:
 			yield Result( operation=tokenName, values=results )
 	...
 
