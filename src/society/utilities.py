@@ -120,7 +120,7 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 				else:
 					Logging.error( "Failed convert value keyset {} into with {}", tokenKeyset, tokenTyping, close=1 )
 			except TypeError as e:
-				Logging.error( "Uncaught ValueError: {}", e )
+				Logging.error( "Uncaught ValueError: {}", format_exc() )
 				Logging.error( "Cannot convert value type of \"{}\" with {}", tokenKeyset, tokenTyping.__name__.title(), close=1 )
 			except ValueError as e:
 				Logging.error( "Uncaught ValueError: {}", e )
