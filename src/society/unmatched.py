@@ -80,7 +80,7 @@ class Unmatched:
 			}
 		}
 		counter = 1
-		realname = f"resources/unparsed/{currtime}"
+		realname = f"resources/unmatched/{currtime}"
 		directory = realname
 		while Storage.d( directory ) is True:
 			directory = f"{realname}/{counter}"
