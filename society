@@ -103,9 +103,6 @@ case ${action,,} in
 						if [[ "$file" == "$prefix" ]]; then
 							continue
 						fi
-						# temp="${file%%extension*}"
-						# start="$(echo -e "${file%%extension*}" | echo -e ${#temp})"
-						# echo -e "${file}:${start}:${file:$((start-${#extension})):$((start))}"
 						if [[ -f "$file" ]]; then
 							filename="${file:$((${#basepath}+1)):$((${#file}))}"
 							removeable=
@@ -131,19 +128,41 @@ case ${action,,} in
 	p|package) pip ${arguments[@]} ;;
 	r|running) python3 ${basepath}/src/society.py ${arguments[@]} && clean ;;
 	s|service) python3 ${basepath}/src/service.py ${arguments[@]} && clean ;;
+	u|upgrade)
+		archive="society.tar.gz"
+		wget --tries=20 "https://github.com/hxAri/Society/archive/refs/heads/main.tar.gz" -O "${basepath}/../${archive}"
+		if [[ $? -eq 0 ]]; then
+			cd "${basepath}/.."
+			rm -rf "${basepath}"
+			if [[ $? -eq 0 ]]; then
+				tar -xvf "${archive}"
+				if [[ $? -eq 0 ]]; then
+					mv Society-main "${basepath}"
+					mv properties.yaml ${$basepath}
+					cd -
+				fi
+			fi
+		fi
+	;;
 	z|zombie) python3 ${basepath}/src/zombie.py ${arguments[@]} && clean ;;
-	*) python3 ${basepath}/src/society.py "$@" && clean ;;
-	# *)
-	# 	echo -e ""
-	# 	echo -e "   Society Terminal Console"
-	# 	echo -e ""
-	# 	echo -e "   example [command] [arguments] [--options]"
-	# 	echo -e "   command c|cleaner                Cleaning The Society Files"
-	# 	echo -e "           i|install                Install Society as Python3 Module"
-	# 	echo -e "           p|package                Pip"
-	# 	echo -e "           r|running                Running The Society as CLI"
-	# 	echo -e "           s|service                Running The Society as Web Service"
-	# 	echo -e "           z|zombie                 Running The Society as Bot Telegram"
-	# 	echo -e ""
-	# ;;
+	account|download|graphql|id|testing) python3 ${basepath}/src/society.py "$@" && clean ;;
+	*)
+		echo -e ""
+		echo -e "   Society Terminal Console"
+		echo -e ""
+		echo -e "   example [command] [arguments] [--options]"
+		echo -e "   command c|cleaner                Cleaning The Society Files"
+		echo -e "           i|install                Install Society as Python3 Module"
+		echo -e "           p|package                Pip"
+		echo -e "           r|running                Running The Society as CLI"
+		echo -e "           s|service                Running The Society as Web Service"
+		echo -e "           u|upgrade                Upgrade The Society code from original repository"
+		echo -e "           z|zombie                 Running The Society as Bot Telegram"
+		echo -e "           account                  Facebook Account management"
+		echo -e "           download                 Facebook multithread media downloader"
+		echo -e "           graphql                  Facebook graphql utilities"
+		echo -e "           id                       Facebook get profile or page id"
+		echo -e "           testing                  Just boring"
+		echo -e ""
+	;;
 esac
