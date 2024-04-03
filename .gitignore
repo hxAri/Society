@@ -5,39 +5,12 @@ __pycache__/
 *$py.class
 
 # Society History Files.
-history/*.json
-history/contents/*.json
-history/contents/*/*.json
-history/contents/*/*.jpg
-history/contents/*/*/*.jpg
-history/contents/*/*.jpeg
-history/contents/*/*/*.jpeg
-history/contents/*/*.json
-history/contents/*/*/*.json
-history/contents/*/*.mp3
-history/contents/*/*/*.mp3
-history/contents/*/*.mp4
-history/contents/*/*/*.mp4
-history/contents/*/*.ogg
-history/contents/*/*/*.ogg
-history/contents/*/*.webp
-history/contents/*/*/*.webp
-history/request/*.json
-history/request/*/*.jpg
-history/request/*/*.jpeg
-history/request/*/*.json
-history/request/*/*.mp3
-history/request/*/*.mp4
-history/request/*/*.ogg
-history/request/*/*.webp
+history/**
+history/contents/**
+history/request/**
+
+# Society Idk Wtf is this.
+objects
 
 # Society Resource Files.
-resources/anonym/*.txt
-resources/example/*.html
-resources/example/*.json
-resources/example/*.txt
-resources/unmatched/*.html
-resources/unmatched/*.json
-resources/unparsed/*.html
-resources/unparsed/*.json
-resources/unparsed/*.txt
+resources/**
