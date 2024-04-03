@@ -24,10 +24,10 @@
 
 from builtins import int as Int, str as Str
 from concurrent.futures import Future, ThreadPoolExecutor
-from json import loads as decoder
+from json import loads as decoder, JSONDecodeError
 from time import sleep
 from traceback import format_exc, format_exception
-from typing import Any, Callable, Iterable, List, Literal
+from typing import Any, Callable, Dict, Iterable, List, Literal, Set, Tuple
 
 from society.common import snakeCase, typeof
 from society.logging import Logging
@@ -38,17 +38,17 @@ from society.typing.threading import Threading
 
 
 def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, **kwargs:Any ) -> Iterable[Result[Literal['operation'],Val]]:
-
+	
 	"""
 	Automation Command Line Execution
-
+	
 	:params List<Jobdesk> jobdesks
 	:params Int sleepy
 	:params Int worker
 	:params Int workerDelays
 	:params Int workerTimeout
 	:params Any **kwargs
-
+	
 	:return Iterable<Result>
 	"""
 	
@@ -59,7 +59,7 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 		if tokenName not in kwargs or tokenName in kwargs and not kwargs[tokenName]:
 			continue
 		tokenValue = kwargs[tokenName]
-		if isinstance( tokenValue, Str ):
+		if isinstance( tokenValue, Str ) and jobdesk.pattern is not None:
 			tokenMatched = jobdesk.pattern.search( tokenValue \
 				if not isinstance( tokenValue, str ) \
 				else \
@@ -88,10 +88,18 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 			try:
 				tokenTyping = tokenKeysets[tokenKeyset]
 				tokenParams[tokenKeyset] = tokenMatches[tokenKeyset]
+				if tokenParams[tokenKeyset] is None:
+					continue
 				if isinstance( jobdesk.escapes, list ):
 					for escape in jobdesk.escapes:
-						tokenParams[tokenKeyset] = tokenParams[tokenKeyset].replace( f"\\{escape}", escape )
-				if isinstance( tokenTyping, list ):
+						if isinstance( tokenParams[tokenKeyset], Str ):
+							tokenParams[tokenKeyset] = tokenParams[tokenKeyset].replace( f"\\{escape}", escape )
+				if tokenTyping in [ dict, Dict, list, List ]:
+					try:
+						tokenParams[tokenKeyset] = decoder( tokenParams[tokenKeyset] )
+					except JSONDecodeError as e:
+						raise ValueError( tokenKeyset, e )
+				elif isinstance( tokenTyping, list ):
 					if bool in tokenKeysets[tokenKeyset]:
 						Logging.error( "The Boolean convertion can't use in multiple convertion value", close=1 )
 					for tokenType in tokenKeysets[tokenKeyset]:
@@ -100,30 +108,31 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 								tokenParams[tokenKeyset] = tokenType( tokenParams[tokenKeyset] )
 							elif tokenParams[tokenKeyset] is not None and isinstance( tokenParams[tokenKeyset], int ):
 								tokenParams[tokenKeyset] = tokenParams[tokenKeyset]
-				elif isinstance( tokenTyping, type ) or callable( tokenTyping ):
-					if tokenParams[tokenKeyset] is not None:
-						if tokenTyping is bool:
-							tokenParams[tokenKeyset] = tokenParams[tokenKeyset]
-							if tokenParams[tokenKeyset].isnumeric():
-								tokenParams[tokenKeyset] = int( tokenParams[tokenKeyset] )
-							elif tokenParams[tokenKeyset].lower() == "false":
-								tokenParams[tokenKeyset] = -0
-							elif tokenParams[tokenKeyset].lower() == "true":
-								tokenParams[tokenKeyset] = +1
-							tokenParams[tokenKeyset] = bool( tokenParams[tokenKeyset] )
-						elif tokenTyping is dict or tokenTyping is list:
-							tokenParams[tokenKeyset] = decoder( tokenParams[tokenKeyset] )
-							if tokenTyping is list and isinstance( tokenParams[tokenKeyset], dict ):
-								tokenParams[tokenKeyset] = list( tokenParams[tokenKeyset].values() )
-						else:
-							tokenParams[tokenKeyset] = tokenTyping( tokenParams[tokenKeyset] )
+				elif isinstance( tokenTyping, type ):
+					if tokenTyping is bool:
+						tokenParams[tokenKeyset] = tokenParams[tokenKeyset]
+						if tokenParams[tokenKeyset].isnumeric():
+							tokenParams[tokenKeyset] = int( tokenParams[tokenKeyset] )
+						elif tokenParams[tokenKeyset].lower() == "false":
+							tokenParams[tokenKeyset] = -0
+						elif tokenParams[tokenKeyset].lower() == "true":
+							tokenParams[tokenKeyset] = +1
+						tokenParams[tokenKeyset] = bool( tokenParams[tokenKeyset] )
+					elif tokenTyping in [ dict, Dict, list, List ]:
+						tokenParams[tokenKeyset] = decoder( tokenParams[tokenKeyset] )
+						if tokenTyping in [ list, List ] and isinstance( tokenParams[tokenKeyset], dict ):
+							tokenParams[tokenKeyset] = list( tokenParams[tokenKeyset].values() )
+					elif not isinstance( tokenParams[tokenKeyset], tokenTyping ):
+						tokenParams[tokenKeyset] = tokenTyping( tokenParams[tokenKeyset] )
+				elif callable( tokenTyping ) is True:
+					tokenParams[tokenKeyset] = tokenTyping( tokenParams[tokenKeyset] )
 				else:
 					Logging.error( "Failed convert value keyset {} into with {}", tokenKeyset, tokenTyping, close=1 )
 			except TypeError as e:
-				Logging.error( "Uncaught ValueError: {}", format_exc() )
+				Logging.error( "Uncaught ValueError: {}", "\x0a".join( format_exception( e ) ) )
 				Logging.error( "Cannot convert value type of \"{}\" with {}", tokenKeyset, tokenTyping.__name__.title(), close=1 )
 			except ValueError as e:
-				Logging.error( "Uncaught ValueError: {}", e )
+				Logging.error( "Uncaught ValueError: {}", "\x0a".join( format_exception( e ) ) )
 				Logging.error( "Invalid \"{}\" value, value type must be type {}", tokenKeyset, tokenTyping.__name__.title(), close=1 )
 		tokenThread = jobdesk.thread
 		tokenExecute = jobdesk.execute
@@ -183,11 +192,11 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 			yield Result( operation=tokenName, values=results )
 	...
 
-def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1, workers:Int=2, workerDelays:Int=10, workerTimeout:Int=120, *args:Any, **kwargs:Any ) -> List[Any]:
-
+def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, *args:Any, **kwargs:Any ) -> List[Any]:
+	
 	"""
 	Short ThreadPoolExecutor
-
+	
 	:params Str name
 	:params Callable callback
 	:params List<Any> dataset
@@ -197,20 +206,19 @@ def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1
 	:params Int workerTimeout
 	:params Any *args
 	:params Any **kwargs
-
+	
 	:return List<Any>
 	"""
-
-	results:list[Any] = []
 	
-	with ThreadPoolExecutor( max_workers=workers ) as executor:
+	results:List[Any] = []
+	with ThreadPoolExecutor( max_workers=worker ) as executor:
 		futures:list[Future] = []
-		Logging.info( "Building Thread Pool Executor with {} workers for {}", workers, name, start="\r" )
+		Logging.info( "Building Thread Pool Executor with {} workers for {}", worker, name, start="\x0d" )
 		try:
 			for count, data in enumerate( dataset ):
-				Logging.info( "Starting thread for {}", name, start="\r", thread=count+1 )
+				Logging.info( "Starting thread for {}", name, start="\x0d", thread=count+1 )
 				futures.append( executor.submit( callback, data, *args, thread=count+1, **kwargs ) )
-				sleep( workerDelays if ( count +1 ) % workers == 0 else sleepy )
+				sleep( workerDelays if ( count +1 ) % worker == 0 else sleepy )
 			while all( future.done() for future in futures ) is False:
 				for count, future in enumerate( futures ):
 					if future.running() is True:
@@ -234,25 +242,28 @@ def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1
 									messageChar, 
 									messageSuffix
 								])
-							Logging.info( "{}", messages, end="\x20", start="\r", thread=count+1 )
+							Logging.info( "{}", messages, end="\x20", start="\x0d", thread=count+1 )
 							sleep( 0.1 )
 					...
 				...
-			Logging.info( "A total of {} worker threads have been completed", len( futures ), start="\r" )
+			Logging.info( "A total of {} worker threads have been completed", len( futures ), start="\x0d" )
+			Logging.info( "ThreadPoolExecutor for {} stoped", name, start="\x0d" )
 			results = list( future.result() for future in futures )
 		except BaseException as e:
 			if isinstance( e, KeyboardInterrupt ):
-				Logging.info( "Program has been stopped", start="\x0a", close=1 )
+				executor.shutdown()
+				Logging.info( "ThreadPoolExecutor has been shuting down", start="\x0a" )
 			else:
-				Logging.error( "Uncaught {}: {}", typeof( e ), format_exc(), start="\r", close=1 )
-	Logging.info( "Thread Pool for {} stoped", name, start="\r" )
+				Logging.error( "Uncaught {}: {}", typeof( e ), format_exc(), start="\x0d" )
+			Logging.info( "Program has ben stopped", start="\x0a", close=1 )
+		...
 	return results
 
 def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=None, name=None, args=None, kwargs=None ) -> Threading:
-
+	
 	"""
 	Short Threading
-
+	
 	:params Str loading
 	:params Str success
 	:params Any group
@@ -260,10 +271,10 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=Non
 	:params Str name
 	:params Any args
 	:params Any kwargs
-
+	
 	:return Threading
 	"""
-
+	
 	try:
 		thread = Threading( group=group, target=target, name=name, args=args, kwargs=kwargs )
 		thread.start()
@@ -287,14 +298,14 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=Non
 						messageChar, 
 						messageSuffix
 					])
-				Logging.info( "{}", messages, end="\x20", start="\r", thread=i )
+				Logging.info( "{}", messages, end="\x20", start="\x0d", thread=i )
 				sleep( 0.1 )
-		Logging.info( "{}", success if success is not None else loading, end="\x0a", start="\r" )
+		Logging.info( "{}", success if success is not None else loading, end="\x0a", start="\x0d" )
 		return thread
 	except BaseException as e:
 		if isinstance( e, KeyboardInterrupt ):
 			Logging.info( "Program has been stopped", start="\x0a", close=1 )
 		else:
-			Logging.error( "Uncaught {}: {}", type( e ).__name__, format_exc(), start="\r", close=1 )
+			Logging.error( "Uncaught {}: {}", type( e ).__name__, format_exc(), start="\x0d", close=1 )
 	return None
 	...
