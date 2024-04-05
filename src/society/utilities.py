@@ -68,7 +68,10 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 					"" 
 			)
 			if tokenMatched is None:
-				Logging.error( "Invalid option value for --{}", tokenName.replace( "\x5f", "\x2d" ), close=1 )
+				Logging.error( "Invalid option value for --\x1b[1;38;5;189m{}", tokenName.replace( "\x5f", "\x2d" ) )
+				if jobdesk.syntax is not None:
+					Logging.error( "Usage option --\x1b[1;38;5;189m{}=\x1b[1;38;5;147m{}", tokenName.replace( "\x5f", "\x2d" ), jobdesk.syntax, close=1 )
+				exit( 1 )
 			tokenMatches = tokenMatched.groupdict()
 		else:
 			tokenMatches = {}
