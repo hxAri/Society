@@ -88,7 +88,7 @@ class Jobdesk( Readonly ):
 		
 		...
 	
-	def __init__( self, name:Str, thread:Thread, execute:Callable[[Args,Kwargs,Int],Any], keysets:Dict[Str,Union[Callable,List[Union[Callable,Type]],Type]], pattern:Union[Pattern[Str],Str], message:Message, dataset:Str=None, allowed:Bool=None, escapes:List[Str]=None, requires:List[Require]=None ) -> None:
+	def __init__( self, name:Str, thread:Thread, execute:Callable[[Args,Kwargs,Int],Any], keysets:Dict[Str,Union[Callable,List[Union[Callable,Type]],Type]], pattern:Union[Pattern[Str],Str], syntax:Str, message:Message, dataset:Str=None, allowed:Bool=None, escapes:List[Str]=None, requires:List[Require]=None ) -> None:
 		
 		"""
 		Construct method of class Jobdesk
@@ -98,6 +98,7 @@ class Jobdesk( Readonly ):
 		:params Callable<<Args,Kwargs,Int>,Any> execute
 		:params Dict<Str,Callable|List<Callable|Type>Type> keysets
 		:params Pattern<Str>|Str pattern
+		:parans Str syntax
 		:params Jobdesk.Message message
 		:params Str dataset
 		:params Bool allowed
@@ -114,6 +115,7 @@ class Jobdesk( Readonly ):
 		self.execute:Callable[[Args,Kwargs,Int],Any] = execute
 		self.keysets:Dict[Str,Union[Callable,List[Union[Callable,Type]],Type]] = keysets
 		self.pattern:Union[Pattern[Str],Str] = pattern
+		self.syntax:Str = syntax
 		self.message:Jobdesk.Message = message
 		self.dataset:Str = dataset
 		self.allowed:Bool = allowed
