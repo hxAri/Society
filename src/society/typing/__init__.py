@@ -29,7 +29,6 @@ from society.typing.browser import CAPTUREABLE, Browser
 from society.typing.jobdesk import Jobdesk
 from society.typing.immutable import Immutable
 from society.typing.map import Map
-from society.parser import Parser
 from society.typing.properties import Properties
 from society.typing.readonly import Readonly
 from society.typing.result import Result
