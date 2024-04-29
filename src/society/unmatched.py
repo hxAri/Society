@@ -57,7 +57,7 @@ class Unmatched:
 		
 		currtime = timestamp()
 		pathname = strftime( "%d.%m-%Y %H:%M", currtime )
-		traceback = getframeinfo( stack()[2][0] )
+		traceback = getframeinfo( stack()[1][0] )
 		filename = traceback.filename
 		function = traceback.function
 		inlineno = traceback.lineno
