@@ -45,7 +45,7 @@ del BASEPARTS
 
 
 class Storage:
-
+	
 	BASEPATH:Str = BASEPATH
 	""" The Base Path of Society Application """
 	
@@ -54,7 +54,7 @@ class Storage:
 	
 	@staticmethod
 	def fname() -> Str: return datetime.now().strftime( "%Y-%m-%d %H:%M:%S.json" )
-
+	
 	@staticmethod
 	def cat( fname:Str, fmode:Str="r", stream:Bool=False ) -> Union[Str,TextIOWrapper]:
 		
@@ -131,7 +131,7 @@ class Storage:
 		if dname[0] != "\x2f":
 			dname = f"{Storage.BASEPATH}/{dname}"
 		mkdir( dname, mode=mode, exist_ok=existOk )
-
+	
 	@staticmethod
 	def touch( fname:Str, data:Any, fmode:Str="w" ) -> None:
 		
@@ -157,5 +157,5 @@ class Storage:
 			fopen.write( fdata )
 			fopen.close()
 		...
-
+	
 	...
