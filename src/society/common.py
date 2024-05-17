@@ -30,6 +30,7 @@ from gzip import BadGzipFile, decompress as GzipDecompress
 from hashlib import md5
 from pytz import timezone
 from pyzstd import decompress as ZstdDecompress, ZstdError
+from random import choice
 from re import IGNORECASE, MULTILINE, S
 from re import compile, match, split, sub as substr
 from requests import Response, Session
@@ -222,6 +223,9 @@ def converter( readable:Str ) -> Int:
 	except ValueError:
 		...
 	return 0
+
+def delays() -> None:
+	sleep( choice([ 1.3, 1.6, 1.9, 2, 2.2, 2.4, 2.6 ]) )
 
 def download( source:Str, mediaType:Str, directory:Str=None, proxies:Dict[Str,Str]=None, stream:Bool=False, thread:Int=0 ) -> Str:
 
