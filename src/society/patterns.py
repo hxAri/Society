@@ -42,5 +42,5 @@ Photos:List[Pattern[compile]] = [
 Snippet:Pattern[compile] = compile( r"^(?P<access>Publi[ck])(?:\s+.\s+)(?P<member>[0-9]+(?:\s*(?:K|rb)))(?:\s+(?:anggota|members?)?\s*.\s+)(?P<post>(?:[0-9]+)(\+)?)\s+(?:posts?|postingan)\s+(?:per|tiap|setiap)(?:\s*|-)?\s*(?P<time>(?:hour|jam|day|hari|week|minggu|month|bulan|year|tahun)s?)", IGNORECASE )
 """ A Pattern for capture group information in the group snippet """
 
-Username:Pattern[compile] = compile( r"^https?://(?:(?:www|web|m|mbasic|[a-zA-Z0-9-]+)\.)?facebook\.com/(?:people/)?(?P<username>[a-zA-Z_](?:[a-zA-Z0-9_\.]*[a-zA-Z0-9_]?)*)", IGNORECASE )
+Username:Pattern[compile] = compile( r"^https?://(?:(?:www|web|m|mbasic|[a-zA-Z0-9-]+)\.)?facebook\.com/(?:people/)?(?P<username>[a-zA-Z_](?:[a-zA-Z0-9_\-\.]*[a-zA-Z0-9_]?)*)", IGNORECASE )
 """ A Pattern for capture username in the url """
