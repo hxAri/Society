@@ -132,7 +132,9 @@ class Logging:
 		:return None
 		"""
 		
-		Logging.write( DEBUG, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+		if Properties.Environment == "development":
+			Logging.write( DEBUG, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+		...
 
 	@staticmethod
 	def error( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:

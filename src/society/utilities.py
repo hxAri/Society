@@ -54,145 +54,145 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 	
 	for jobdesk in jobdesks:
 		results = None
-		tokenName = snakeCase( jobdesk.name )
-		tokenKeysets = jobdesk.keysets
-		if tokenName not in kwargs or tokenName in kwargs and not kwargs[tokenName]:
+		jobdeskName = snakeCase( jobdesk.name )
+		jobdeskKeysets = jobdesk.keysets
+		if jobdeskName not in kwargs or jobdeskName in kwargs and not kwargs[jobdeskName]:
 			continue
-		tokenValue = kwargs[tokenName]
-		if isinstance( tokenValue, Str ) and jobdesk.pattern is not None:
-			tokenMatched = jobdesk.pattern.search( tokenValue \
-				if not isinstance( tokenValue, str ) \
+		jobdeskValue = kwargs[jobdeskName]
+		if isinstance( jobdeskValue, Str ) and jobdesk.pattern is not None:
+			jobdeskMatched = jobdesk.pattern.search( jobdeskValue \
+				if not isinstance( jobdeskValue, str ) \
 				else \
-					f"{tokenValue}" \
-				if tokenValue is not None else \
+					f"{jobdeskValue}" \
+				if jobdeskValue is not None else \
 					"" 
 			)
-			if tokenMatched is None:
-				Logging.error( "Invalid option value for --\x1b[1;38;5;189m{}", tokenName.replace( "\x5f", "\x2d" ) )
+			if jobdeskMatched is None:
+				Logging.error( "Invalid option value for --\x1b[1;38;5;189m{}", jobdeskName.replace( "\x5f", "\x2d" ) )
 				if jobdesk.syntax is not None:
-					Logging.error( "Usage option --\x1b[1;38;5;189m{}=\x1b[1;38;5;147m{}", tokenName.replace( "\x5f", "\x2d" ), jobdesk.syntax, close=1 )
+					Logging.error( "Usage option --\x1b[1;38;5;189m{}=\x1b[1;38;5;147m{}", jobdeskName.replace( "\x5f", "\x2d" ), jobdesk.syntax, close=1 )
 				exit( 1 )
-			tokenMatches = tokenMatched.groupdict()
+			jobdeskMatches = jobdeskMatched.groupdict()
 		else:
-			tokenMatches = {}
-			if tokenKeysets:
-				tokenMatches[list( tokenKeysets.keys() )[0]] = tokenValue
+			jobdeskMatches = {}
+			if jobdeskKeysets:
+				jobdeskMatches[list( jobdeskKeysets.keys() )[0]] = jobdeskValue
 		if isinstance( jobdesk.requires, list ) and all( isinstance( r, Jobdesk.Require ) for r in jobdesk.requires ):
-			for tokenRequire in jobdesk.requires:
-				tokenNameRequire = snakeCase( tokenRequire.name )
-				tokenKeyset = tokenRequire.keyset
-				if tokenNameRequire in kwargs and kwargs[tokenNameRequire]:
-					tokenMatches[tokenKeyset] = kwargs[tokenNameRequire]
-		tokenParams = {}
-		for tokenKeyset in tokenKeysets:
-			if tokenKeyset not in tokenMatches or tokenMatches[tokenKeyset] is None:
-				tokenParams[tokenKeyset] = None
+			for jobdeskRequire in jobdesk.requires:
+				jobdeskNameRequire = snakeCase( jobdeskRequire.name )
+				jobdeskKeyset = jobdeskRequire.keyset
+				if jobdeskNameRequire in kwargs and kwargs[jobdeskNameRequire]:
+					jobdeskMatches[jobdeskKeyset] = kwargs[jobdeskNameRequire]
+		jobdeskParams = {}
+		for jobdeskKeyset in jobdeskKeysets:
+			if jobdeskKeyset not in jobdeskMatches or jobdeskMatches[jobdeskKeyset] is None:
+				jobdeskParams[jobdeskKeyset] = None
 				continue
 			try:
-				tokenTyping = tokenKeysets[tokenKeyset]
-				tokenParams[tokenKeyset] = tokenMatches[tokenKeyset]
-				if tokenParams[tokenKeyset] is None:
+				jobdeskTyping = jobdeskKeysets[jobdeskKeyset]
+				jobdeskParams[jobdeskKeyset] = jobdeskMatches[jobdeskKeyset]
+				if jobdeskParams[jobdeskKeyset] is None:
 					continue
 				if isinstance( jobdesk.escapes, list ):
 					for escape in jobdesk.escapes:
-						if isinstance( tokenParams[tokenKeyset], Str ):
-							tokenParams[tokenKeyset] = tokenParams[tokenKeyset].replace( f"\\{escape}", escape )
-				if tokenTyping in [ dict, Dict, list, List ]:
+						if isinstance( jobdeskParams[jobdeskKeyset], Str ):
+							jobdeskParams[jobdeskKeyset] = jobdeskParams[jobdeskKeyset].replace( f"\\{escape}", escape )
+				if jobdeskTyping in [ dict, Dict, list, List ]:
 					try:
-						tokenParams[tokenKeyset] = decoder( tokenParams[tokenKeyset] )
+						jobdeskParams[jobdeskKeyset] = decoder( jobdeskParams[jobdeskKeyset] )
 					except JSONDecodeError as e:
-						raise ValueError( tokenKeyset, e )
-				elif isinstance( tokenTyping, list ):
-					if bool in tokenKeysets[tokenKeyset]:
+						raise ValueError( jobdeskKeyset, e )
+				elif isinstance( jobdeskTyping, list ):
+					if bool in jobdeskKeysets[jobdeskKeyset]:
 						Logging.error( "The Boolean convertion can't use in multiple convertion value", close=1 )
-					for tokenType in tokenKeysets[tokenKeyset]:
-						if tokenType is int:
-							if tokenParams[tokenKeyset] is not None and isinstance( tokenParams[tokenKeyset], str ) and tokenParams[tokenKeyset].isnumeric():
-								tokenParams[tokenKeyset] = tokenType( tokenParams[tokenKeyset] )
-							elif tokenParams[tokenKeyset] is not None and isinstance( tokenParams[tokenKeyset], int ):
-								tokenParams[tokenKeyset] = tokenParams[tokenKeyset]
-				elif isinstance( tokenTyping, type ):
-					if tokenTyping is bool:
-						tokenParams[tokenKeyset] = tokenParams[tokenKeyset]
-						if tokenParams[tokenKeyset].isnumeric():
-							tokenParams[tokenKeyset] = int( tokenParams[tokenKeyset] )
-						elif tokenParams[tokenKeyset].lower() == "false":
-							tokenParams[tokenKeyset] = -0
-						elif tokenParams[tokenKeyset].lower() == "true":
-							tokenParams[tokenKeyset] = +1
-						tokenParams[tokenKeyset] = bool( tokenParams[tokenKeyset] )
-					elif tokenTyping in [ dict, Dict, list, List ]:
-						tokenParams[tokenKeyset] = decoder( tokenParams[tokenKeyset] )
-						if tokenTyping in [ list, List ] and isinstance( tokenParams[tokenKeyset], dict ):
-							tokenParams[tokenKeyset] = list( tokenParams[tokenKeyset].values() )
-					elif not isinstance( tokenParams[tokenKeyset], tokenTyping ):
-						tokenParams[tokenKeyset] = tokenTyping( tokenParams[tokenKeyset] )
-				elif callable( tokenTyping ) is True:
-					tokenParams[tokenKeyset] = tokenTyping( tokenParams[tokenKeyset] )
+					for jobdeskType in jobdeskKeysets[jobdeskKeyset]:
+						if jobdeskType is int:
+							if jobdeskParams[jobdeskKeyset] is not None and isinstance( jobdeskParams[jobdeskKeyset], str ) and jobdeskParams[jobdeskKeyset].isnumeric():
+								jobdeskParams[jobdeskKeyset] = jobdeskType( jobdeskParams[jobdeskKeyset] )
+							elif jobdeskParams[jobdeskKeyset] is not None and isinstance( jobdeskParams[jobdeskKeyset], int ):
+								jobdeskParams[jobdeskKeyset] = jobdeskParams[jobdeskKeyset]
+				elif isinstance( jobdeskTyping, type ):
+					if jobdeskTyping is bool:
+						jobdeskParams[jobdeskKeyset] = jobdeskParams[jobdeskKeyset]
+						if jobdeskParams[jobdeskKeyset].isnumeric():
+							jobdeskParams[jobdeskKeyset] = int( jobdeskParams[jobdeskKeyset] )
+						elif jobdeskParams[jobdeskKeyset].lower() == "false":
+							jobdeskParams[jobdeskKeyset] = -0
+						elif jobdeskParams[jobdeskKeyset].lower() == "true":
+							jobdeskParams[jobdeskKeyset] = +1
+						jobdeskParams[jobdeskKeyset] = bool( jobdeskParams[jobdeskKeyset] )
+					elif jobdeskTyping in [ dict, Dict, list, List ]:
+						jobdeskParams[jobdeskKeyset] = decoder( jobdeskParams[jobdeskKeyset] )
+						if jobdeskTyping in [ list, List ] and isinstance( jobdeskParams[jobdeskKeyset], dict ):
+							jobdeskParams[jobdeskKeyset] = list( jobdeskParams[jobdeskKeyset].values() )
+					elif not isinstance( jobdeskParams[jobdeskKeyset], jobdeskTyping ):
+						jobdeskParams[jobdeskKeyset] = jobdeskTyping( jobdeskParams[jobdeskKeyset] )
+				elif callable( jobdeskTyping ) is True:
+					jobdeskParams[jobdeskKeyset] = jobdeskTyping( jobdeskParams[jobdeskKeyset] )
 				else:
-					Logging.error( "Failed convert value keyset {} into with {}", tokenKeyset, tokenTyping, close=1 )
+					Logging.error( "Failed convert value keyset {} into with {}", jobdeskKeyset, jobdeskTyping, close=1 )
 			except TypeError as e:
 				Logging.error( "Uncaught ValueError: {}", "\x0a".join( format_exception( e ) ) )
-				Logging.error( "Cannot convert value type of \"{}\" with {}", tokenKeyset, tokenTyping.__name__.title(), close=1 )
+				Logging.error( "Cannot convert value type of \"{}\" with {}", jobdeskKeyset, jobdeskTyping.__name__.title(), close=1 )
 			except ValueError as e:
 				Logging.error( "Uncaught ValueError: {}", "\x0a".join( format_exception( e ) ) )
-				Logging.error( "Invalid \"{}\" value, value type must be type {}", tokenKeyset, tokenTyping.__name__.title(), close=1 )
-		tokenThread = jobdesk.thread
-		tokenExecute = jobdesk.execute
-		if tokenThread is None:
-			results = tokenExecute( **tokenParams )
-		elif tokenThread is ThreadExecutor:
-			tokenThreadName = "Executing {execute}"
+				Logging.error( "Invalid \"{}\" value, value type must be type {}", jobdeskKeyset, jobdeskTyping.__name__.title(), close=1 )
+		jobdeskThread = jobdesk.thread
+		jobdeskExecute = jobdesk.execute
+		if jobdeskThread is None:
+			results = jobdeskExecute( **jobdeskParams )
+		elif jobdeskThread is ThreadExecutor:
+			jobdeskThreadName = "Executing {execute}"
 			if not jobdesk.dataset:
-				Logging.error( "Cannot executute {}, unknown target dataset", tokenExecute, close=1 )
-			tokenDatasetName = jobdesk.dataset
-			tokenDatasetValue = tokenParams[tokenDatasetName]
-			if isinstance( tokenDatasetValue, int ):
-				tokenDatasetValue = list( i for i in range( tokenDatasetValue ) )
+				Logging.error( "Cannot executute {}, unknown target dataset", jobdeskExecute, close=1 )
+			jobdeskDatasetName = jobdesk.dataset
+			jobdeskDatasetValue = jobdeskParams[jobdeskDatasetName]
+			if isinstance( jobdeskDatasetValue, int ):
+				jobdeskDatasetValue = list( i for i in range( jobdeskDatasetValue ) )
 			elif isinstance( jobdesk, str ):
-				tokenDatasetValue = [tokenDatasetValue]
-			if tokenDatasetName not in tokenParams or not tokenParams[tokenDatasetName] or not isinstance( tokenParams[tokenDatasetName], Iterable ):
-				Logging.error( "Cannot execute {}, dataset target does not iterable", tokenExecute, close=1 )
+				jobdeskDatasetValue = [jobdeskDatasetValue]
+			if jobdeskDatasetName not in jobdeskParams or not jobdeskParams[jobdeskDatasetName] or not isinstance( jobdeskParams[jobdeskDatasetName], Iterable ):
+				Logging.error( "Cannot execute {}, dataset target does not iterable", jobdeskExecute, close=1 )
 			if isinstance( jobdesk.message, Jobdesk.Message ):
 				if jobdesk.message.name:
-					tokenThreadName = jobdesk.message.name
-			tokenFormats = { "execute": tokenExecute, **tokenParams }
-			del tokenParams[tokenDatasetName]
+					jobdeskThreadName = jobdesk.message.name
+			jobdeskFormats = { "execute": jobdeskExecute, **jobdeskParams }
+			del jobdeskParams[jobdeskDatasetName]
 			results = ThreadExecutor(
-				name=tokenThreadName.format( **tokenFormats ),
-				callback=lambda value, thread: tokenExecute(
-					value, thread=thread, **tokenParams
+				name=jobdeskThreadName.format( **jobdeskFormats ),
+				callback=lambda value, thread: jobdeskExecute(
+					value, thread=thread, **jobdeskParams
 				),
-				dataset=tokenDatasetValue,
+				dataset=jobdeskDatasetValue,
 				sleepy=sleepy,
 				worker=worker,
 				workerDelays=workerDelays,
 				workerTimeout=workerTimeout
 			)
-		elif tokenThread is ThreadRunner:
-			tokenLoading = "Executing {execute}"
-			tokenSuccess = None
+		elif jobdeskThread is ThreadRunner:
+			jobdeskLoading = "Executing {execute}"
+			jobdeskSuccess = None
 			if isinstance( jobdesk.message, Jobdesk.Message ):
 				if jobdesk.message.loading:
-					tokenLoading = jobdesk.message.loading
+					jobdeskLoading = jobdesk.message.loading
 				if jobdesk.message.success:
-					tokenSuccess = jobdesk.message.success
-			tokenThread = ThreadRunner(
-				target=lambda: tokenExecute( **tokenParams, thread=1 ),
-				success=tokenSuccess,
-				loading=tokenLoading.format(
-					execute=tokenExecute,
-					**tokenParams
+					jobdeskSuccess = jobdesk.message.success
+			jobdeskThread = ThreadRunner(
+				target=lambda: jobdeskExecute( **jobdeskParams, thread=1 ),
+				success=jobdeskSuccess,
+				loading=jobdeskLoading.format(
+					execute=jobdeskExecute,
+					**jobdeskParams
 				)
 			)
-			if tokenThread.exception is not None:
-				exception = tokenThread.exception
+			if jobdeskThread.exception is not None:
+				exception = jobdeskThread.exception
 				Logging.error( "{}: {}", typeof( exception ), "\x0d".join( format_exception( exception ) ), close=1 )
-			results = tokenThread.returns
+			results = jobdeskThread.returns
 		else:
-			Logging.error( "Unhandled executor runner {}", tokenThread, close=1 )
+			Logging.error( "Unhandled executor runner {}", jobdeskThread, close=1 )
 		if results is not None:
-			yield Result( operation=tokenName, values=results )
+			yield Result( operation=jobdeskName, values=results )
 	...
 
 def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, *args:Any, **kwargs:Any ) -> List[Any]:

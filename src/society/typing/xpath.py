@@ -22,17 +22,19 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
-from society.typing.account import Account
-from society.typing.anonym import Anonymity
-from society.typing.authorization import Authorization
-from society.typing.browser import Browser
-from society.typing.jobdesk import Jobdesk
-from society.typing.immutable import Immutable
-from society.typing.map import Map
-from society.typing.properties import Properties
-from society.typing.readonly import Readonly
-from society.typing.result import Result
-from society.typing.schema import Schema
-from society.typing.search import Filter, Tab
-from society.typing.threading import Threading
-from society.typing.xpath import Xpath
+from builtins import str as Str
+from typing import final
+
+
+@final
+class Xpath:
+	
+	""" Facebook Xpath Typing Implementation """
+	
+	AnchorHome:Str = "/html/body/div[1]/div/div[1]/div/div[2]/div[4]/div/div[1]/div[1]/ul/li[1]/span/div/a"
+	ButtonLogin:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[2]/button"
+	FormLogin:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]"
+	InputEmail:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[1]/div[1]/input"
+	inputpassword:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[1]/div[2]/div/input"
+	
+	...
