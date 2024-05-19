@@ -25,7 +25,7 @@
 from society.typing.account import Account
 from society.typing.anonym import Anonymity
 from society.typing.authorization import Authorization
-from society.typing.browser import CAPTUREABLE, Browser
+from society.typing.browser import Browser
 from society.typing.jobdesk import Jobdesk
 from society.typing.immutable import Immutable
 from society.typing.map import Map
@@ -35,3 +35,4 @@ from society.typing.result import Result
 from society.typing.schema import Schema
 from society.typing.search import Filter, Tab
 from society.typing.threading import Threading
+from society.typing.xpath import Xpath
