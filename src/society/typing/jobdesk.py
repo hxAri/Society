@@ -24,7 +24,7 @@
 
 from builtins import bool as Bool, int as Int, str as Str, type as Type
 from re import compile, Pattern
-from typing import Any, Callable, Dict, final, List, Literal, TypeVar, Union
+from typing import Any, Callable, Dict, final, List, TypeVar, Union
 
 from society.typing.readonly import Readonly
 
@@ -108,12 +108,12 @@ class Jobdesk( Readonly ):
 		:return None
 		"""
 		
-		if isinstance( pattern, Str ):
-			pattern = compile( pattern )
 		self.name:Str = name
 		self.thread:Thread = thread
 		self.execute:Callable[[Args,Kwargs,Int],Any] = execute
 		self.keysets:Dict[Str,Union[Callable,List[Union[Callable,Type]],Type]] = keysets
+		if pattern is not None and not isinstance( pattern, Pattern ):
+			pattern = compile( pattern )
 		self.pattern:Union[Pattern[Str],Str] = pattern
 		self.syntax:Str = syntax
 		self.message:Jobdesk.Message = message

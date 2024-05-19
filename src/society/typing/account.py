@@ -59,10 +59,14 @@ class Account( Readonly ):
 		return None
 		"""
 		
-		self.authorization:Authorization = authorization if authorization is not None else Authorization(
-			username=username if username is not None else usermail, 
-			password=password 
-		)
+		self.authorization:Authorization = authorization \
+			if authorization is not None else \
+				Authorization(
+					username=username \
+						if username is not None else \
+						   usermail, 
+					password=password 
+				)
 		self.browser:Browser = browser
 		self.usermail:Str = usermail
 		self.username:Str = username

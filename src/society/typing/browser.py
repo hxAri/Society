@@ -24,20 +24,12 @@
 
 from builtins import str as Str
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.common.options import ArgOptions
-try:
-	CAPTUREABLE = True
-	from seleniumwire.webdriver import (
-		Chrome, ChromeOptions, 
-		Firefox, FirefoxOptions
-	)
-except ModuleNotFoundError:
-	CAPTUREABLE = False
-	from selenium.webdriver import (
-		Chrome, ChromeOptions, 
-		Firefox, FirefoxOptions
-	)
-from typing import Dict, final, List, Union
+from seleniumwire.inspect import InspectRequestsMixin as Inspector
+from seleniumwire.webdriver import (
+	Chrome, ChromeOptions, 
+	Firefox, FirefoxOptions
+)
+from typing import Any, Dict, final, List, Union
 from urllib.parse import unquote as UrlDecoder
 
 from society.typing.builtins import Val
@@ -45,11 +37,14 @@ from society.typing.readonly import Readonly
 
 
 @final
+class Driver( Inspector, WebDriver ): ...
+
+@final
 class Browser( Readonly ):
 	
 	""" Base Browser class """
 	
-	def __init__( self, driver:Str, cookies:Union[List[Dict[Str,Val]],Str], headers:Dict[Str,Str], payload:Dict[Str,Str], session:Dict[Str,Str], storage:Dict[Str,Str] ) -> None:
+	def __init__( self, driver:Str, cookies:Union[List[Dict[Str,Val]],Str], headers:Dict[Str,Str], options:List[Dict[Str,Any]], payload:Dict[Str,Str], session:Dict[Str,Str], storage:Dict[Str,Str] ) -> None:
 		
 		"""
 		Construct method of class Browser
@@ -60,6 +55,8 @@ class Browser( Readonly ):
 			The browser cookies
 		:params Dict<Str,Str> headers
 			The browser headers
+		:params List<Dict<Str,Any>> options
+			The browser driver options
 		:params Dict<Str,Str> payload
 			The browser graphql payload
 		:params Dict<Str,Str> session
@@ -90,11 +87,12 @@ class Browser( Readonly ):
 		self.driver:Str = driver.capitalize()
 		self.cookies:List[Dict[Str,Val]] = cookies
 		self.headers:Dict[Str,Str] = headers
+		self.options:List[Dict[Str,Any]] = options
 		self.payload:Dict[Str,Str] = payload
-		self.session:Dict[Str,Str] = session
-		self.storage:Dict[Str,Str] = storage
+		self.session:Dict[Str,Str] = session if session is not None else {}
+		self.storage:Dict[Str,Str] = storage if storage is not None else {}
 	
-	def create( self ) -> WebDriver:
+	def create( self ) -> Driver:
 		
 		"""
 		Return browser instance
@@ -104,30 +102,28 @@ class Browser( Readonly ):
 		
 		if self.driver == "Chrome":
 			options = ChromeOptions()
-			options.add_argument( "--incognito" )
-			options.add_argument( "--disable-blink-features=AutomationControlled" )
-			options.add_experimental_option( "useAutomationExtension", False )
-			options.add_experimental_option( "excludeSwitches", [
-				"enable-automation"
-			])
 			driver = Chrome
 		else:
 			options = FirefoxOptions()
-			options.add_argument( "--devtools" )
-			options.add_argument( "--safe-mode" )
-			options.add_argument( "--private-window" )
-			options.add_argument( "--disable-blink-features=AutomationControlled" )
-			driver = Firefox
-		parameters = {}
-		if CAPTUREABLE is True:
-			parameters = {
-				"options": options,
-				"seleniumwire_options": {
-					"disable_encoding": True,
-					"mitm_http2": False
-				}
+			driver = Firefox 
+		for option in self.options:
+			if option['type'] in [ "argument" ]:
+				options.add_argument( option['value'] )
+			if option['type'] in [ "add_experimental_option", "experimental" ]:
+				if hasattr( options, "add_experimental_option" ):
+					options.add_experimental_option( option['param'], option['value'] )
+				...
+			...
+		...
+		proxy = {} # The browser typing currently does not have access to account typing.
+		parameters = {
+			"options": options,
+			"seleniumwire_options": {
+				"disable_encoding": True,
+				"mitm_http2": False,
+				"proxy": proxy
 			}
-		instance = driver( **parameters, keep_alive=True )
-		return instance 
+		}
+		return driver( **parameters, keep_alive=True )
 	
 	...
