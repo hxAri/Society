@@ -22,8 +22,9 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
+from builtins import str as Str
 from threading import Thread
-from typing import Any, Callable, final, Text
+from typing import Any, Callable, final
 
 
 @final
@@ -31,7 +32,7 @@ class Threading( Thread ):
 
 	""" Thread class support data return """
 
-	def __init__( self, group=None, target:Callable=None, name:Text=None, args:Any=None, kwargs:Any=None ) -> None:
+	def __init__( self, group=None, target:Callable=None, name:Str=None, args:Any=None, kwargs:Any=None ) -> None:
 		Thread.__init__( self, group=group, target=target, name=name, args=args if args else (), kwargs=kwargs if kwargs else {} )
 		self.__return__:Any = None
 		self.__exception__:Exception = None

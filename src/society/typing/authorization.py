@@ -23,13 +23,9 @@
 #
 
 from builtins import str as Str
-from gzip import BadGzipFile, decompress as GzipDecompress
 from hashlib import md5
-from json import loads as JsonDecoder
-from pyzstd import decompress as ZstdDecompress, ZstdError
-from typing import Dict, final, List, TypeVar as Var, Union
+from typing import final, TypeVar as Var
 
-from society.typing.builtins import Val
 from society.common import request
 from society.typing.properties import Properties
 from society.typing.readonly import Readonly
@@ -100,35 +96,16 @@ class Authorization( Readonly ):
 			"return_ssl_resources": 0,
 			"v": "1.0"
 		}
-		payload['sig'] = md5( "".join([ "".join( list( f"{keyset}={payload[keyset]}" for keyset in payload if payload[keyset] ) ), Properties.ApiSecret ]).encode( "utf-8" ) ).hexdigest()
-		parameters = "\x26".join( list( f"{keyset}={payload[keyset]}" for keyset in payload if payload[keyset] ) )
+		payload['sig'] = md5( "".join([ "".join( list( f"{keyset}={value}" for keyset, value in payload.items() if value ) ), Properties.ApiSecret ]).encode( "utf-8" ) ).hexdigest()
+		parameters = "\x26".join( list( f"{keyset}={value}" for keyset, value in payload.items() if value ) )
 		response = request( "GET", f"https://api.facebook.com/restserver.php?{parameters}",
 			proxies=proxies,
 			headers={
 			}
 		)
 		if response is not None:
-			encoding = response.headers['Content-Encoding']
-			try:
-				match encoding:
-					case "br":
-						content = response.content.decode( "UTF-8" )
-					case "gzip":
-						decompress = GzipDecompress( response.content )
-						content = decompress.decode( "UTF-8" )
-					case "zstd":
-						decompress = ZstdDecompress( response.content )
-						content = decompress.decode( "UTF-8" )
-					case _:
-						raise RuntimeError( f"Unsupported content encoding {encoding}" )
-				...
-			except BadGzipFile:
-				content = response.text
-			except ZstdError:
-				content = response.text
-			decoded = JsonDecoder( content )
+			decoded = response.json()
 			if "access_token" in decoded and decoded['access_token']:
-				results = {}
 				keysets = {
 					"access_token": "accessToken",
 					"machine_id": "machineId",
@@ -137,12 +114,11 @@ class Authorization( Readonly ):
 					"storage_key": "storageKey",
 					"uid": "uid"
 				}
-				for keyset in keysets:
-					if keyset in decoded:
-						results[keysets[keyset]] = decoded[keyset]
+				results = { keyset: decoded[alias] for keyset, alias in keysets.items() if keyset in decoded }
 				return Authorization( browser=self.browser, username=self.username, password=self.password, **results )
-			elif "error_msg" in decoded and decoded['error_msg']:
+			if "error_msg" in decoded and decoded['error_msg']:
 				raise RuntimeError( f"{decoded['error_code']}: {decoded['error_msg']}" )
-			return None
+			...
+		return None
 	
 	...

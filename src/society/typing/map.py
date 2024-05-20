@@ -53,7 +53,7 @@ class Map( MutableMapping[Key,Val] ):
 		self.__dict__['__index__'] = 0
 		self.__dict__['__values__'] = []
 		self.__dict__['__keysets__'] = []
-		self.update( collection if isinstance( collection, ( dict, Map ) ) else dict() )
+		self.update( collection if isinstance( collection, ( dict, Map ) ) else {} )
 	
 	@final
 	def __contains__( self, name:Key ) -> Bool:

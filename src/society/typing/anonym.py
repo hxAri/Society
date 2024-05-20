@@ -30,7 +30,19 @@ from society.typing.readonly import Readonly
 
 class Anonymity( Readonly ):
 	
+	""" Anonymity Typing Implementation """
+	
 	def __init__( self, proxies:Guard[Union[Dict[Str,Str],None]], torify:Guard[Dict[Str,Any]] ) -> None:
+		
+		"""
+		Construct method of class Anonymity
+		
+		:params Dict<Str,Str> proxies
+		:params Dict<Str,Any> torify
+		
+		:return None
+		"""
+		
 		self.proxies:Dict[Str,Str] = proxies
 		self.torify:Dict[Str,Any] = torify
 	
