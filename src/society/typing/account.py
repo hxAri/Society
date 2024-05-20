@@ -22,7 +22,7 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
-from builtins import bool as Bool, int as Int, str as Str
+from builtins import bool as Bool, str as Str
 from datetime import datetime, timedelta
 from json import loads as decoder
 from pytz import timezone

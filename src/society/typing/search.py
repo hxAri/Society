@@ -100,7 +100,7 @@ class Tab( Readonly ):
 		:return None
 		"""
 		
-		self.__filters__.append( filter )
+		self.filters.append( filter )
 	
 	@property
 	def items( self ) -> List[Str]:

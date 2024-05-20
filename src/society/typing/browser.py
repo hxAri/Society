@@ -37,7 +37,9 @@ from society.typing.readonly import Readonly
 
 
 @final
-class Driver( Inspector, WebDriver ): ...
+class Driver( Inspector, WebDriver ):
+	
+	""" Driver Typing Implementation """
 
 @final
 class Browser( Readonly ):
