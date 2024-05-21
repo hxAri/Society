@@ -27,7 +27,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from json import loads as decoder, JSONDecodeError
 from time import sleep
 from traceback import format_exc, format_exception
-from typing import Any, Callable, Dict, Iterable, List, Literal, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Literal
 
 from society.common import snakeCase, typeof
 from society.logging import Logging
@@ -71,7 +71,7 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 				Logging.error( "Invalid option value for --\x1b[1;38;5;189m{}", jobdeskName.replace( "\x5f", "\x2d" ) )
 				if jobdesk.syntax is not None:
 					Logging.error( "Usage option --\x1b[1;38;5;189m{}=\x1b[1;38;5;147m{}", jobdeskName.replace( "\x5f", "\x2d" ), jobdesk.syntax, close=1 )
-				exit( 1 )
+				Logging.error( "Terminated", close=1 )
 			jobdeskMatches = jobdeskMatched.groupdict()
 		else:
 			jobdeskMatches = {}
@@ -101,7 +101,7 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 					try:
 						jobdeskParams[jobdeskKeyset] = decoder( jobdeskParams[jobdeskKeyset] )
 					except JSONDecodeError as e:
-						raise ValueError( jobdeskKeyset, e )
+						raise ValueError( jobdeskKeyset, e ) from e
 				elif isinstance( jobdeskTyping, list ):
 					if bool in jobdeskKeysets[jobdeskKeyset]:
 						Logging.error( "The Boolean convertion can't use in multiple convertion value", close=1 )
@@ -284,7 +284,7 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=Non
 		while thread.is_alive():
 			length = len( loading )
 			position = -1
-			for i in "\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-":
+			for i in "\\|/-" * 16:
 				if position >= length:
 					position = -1
 				position += 1
@@ -311,4 +311,3 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=Non
 		else:
 			Logging.error( "Uncaught {}: {}", type( e ).__name__, format_exc(), start="\x0d", close=1 )
 	return None
-	...
