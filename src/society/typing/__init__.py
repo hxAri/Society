@@ -25,7 +25,7 @@
 from society.typing.account import Account
 from society.typing.anonym import Anonymity
 from society.typing.authorization import Authorization
-from society.typing.browser import Browser
+from society.typing.browser import Browser, Driver
 from society.typing.jobdesk import Jobdesk
 from society.typing.immutable import Immutable
 from society.typing.map import Map
