@@ -22,11 +22,18 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
+# For compatibility system.
+if [[ ! $(command -v puts) ]]; then
+	function puts() {
+		echo -e "\x1b[0m$@"
+	}
+fi
+
 # Target basename.
 pathname=$(basename $0)
 
 # Please change this with your virtual enviroment excecutable.
-virtual="/home/hxari/virtual/bin/activate"
+virtual="/home/virtual/bin/activate"
 
 # Clear the terminal screens.
 clear
@@ -58,18 +65,49 @@ function clean() {
 	for cache in $(find ${basepath} | grep __pycache__); do
 		if [[ -d $cache ]]; then
 			rm -rf $cache
+			if [[ $? -ne 0 ]]; then
+				puts "${cache}: failed remove directory"
+			fi
 		fi
 	done
 }
 
+declare -A actions=(
+	[account]="Facebook account management"
+	[cleaner]="Cleaning The Society Files"
+	[download]="Facebook multithread media downloader"
+	[graphql]="Facebook graphql utilities"
+	[install]="Install Society as Python3 Module"
+	[id]="Facebook get profile or page id"
+	[linting]="Linting Society code before commit"
+	[package]="Pip"
+	[parser]="Facebook parser (not implemented at this time)"
+	[running]="Running The Society as CLI"
+	[service]="Running The Society as Web Service"
+	[target]=""
+	[testing]=""
+	[upgrade]="Upgrade The Society code from original repository"
+	[token]="Facebook access token utilities"
+	[zombie]="Running The Society as Bot Telegram"
+)
 action=${1,,}
+default="running"
+running=(
+	"account"
+	"download"
+	"graphql"
+	"id"
+	"parser"
+	"target"
+	"testing"
+)
 arguments=()
-if [[ $action == "" ]]; then
-	action=running
+if [[ "$action" == "" ]]; then
+	action=$default
 else
 	i=1
 	for argument in ${@}; do
-		if [[ $argument != $action ]] || [[ $i != 1 ]]; then
+		if [[ $i != 1 ]]; then
 			arguments+=( $argument )
 		fi
 		i=$((i+1))
@@ -103,19 +141,19 @@ case ${action,,} in
 						if [[ "$file" == "$prefix" ]]; then
 							continue
 						fi
+						# temp="${file%%extension*}"
+						# start="$(echo -e "${file%%extension*}" | echo -e ${#temp})"
+						# puts "${file}:${start}:${file:$((start-${#extension})):$((start))}"
 						if [[ -f "$file" ]]; then
 							filename="${file:$((${#basepath}+1)):$((${#file}))}"
 							removeable=
 							while [[ -z "$removeable" ]]; do
-								echo -e "remove: $filename [Y/n]" "\c"
+								puts "remove: $filename [Y/n]" "\c"
 								read removeable
-								case "$removeable" in
-									y|Y) rm $file ;;
-									n|N)
-									;;
-									*)
-										removeable=
-									;;
+								case "${removeable,,}" in
+									y) rm $file ;;
+									n) puts "skipped: ${filename}" ;;
+									*) removeable= ;;
 								esac
 							done
 						fi
@@ -124,10 +162,60 @@ case ${action,,} in
 			fi
 		done
 	;;
-	i|install) python3 ${basepath}/setup.py install ${arguments[@]} && clean ;;
+	i|install) python3 ${basepath}/setup.py install ${arguments[@]} ;;
+	l|linting)
+		python3 -m pylint --argument-naming-style=camelCase \
+			   --attr-naming-style=camelCase \
+			   --class-attribute-naming-style=any \
+			   --class-const-naming-style=UPPER_CASE \
+			   --class-naming-style=PascalCase \
+			   --const-naming-style=UPPER_CASE \
+			   --extension-pkg-allow-list=pyzstd \
+			   --variable-naming-style=camelCase \
+			   --function-naming-style=camelCase \
+			   --max-attributes=30 \
+			   --max-public-methods=60 \
+			   --method-naming-style=camelCase \
+			   --good-names="e,Executor,i,id,u,k,pk,ThreadExecutor,ThreadRunner,v" \
+			   --ignore-docstrings=y \
+			   --ignore-long-lines="[^\n]+" \
+			   --indent-string="\t" \
+			   --disable=arguments-differ \
+			   --disable=broad-exception-caught \
+			   --disable=consider-using-f-string \
+			   --disable=function-redefined \
+			   --disable=keyword-arg-before-vararg \
+			   --disable=missing-function-docstring \
+			   --disable=missing-module-docstring \
+			   --disable=multiple-statements \
+			   --disable=non-parent-init-called \
+			   --disable=protected-access \
+			   --disable=redefined-argument-from-local \
+			   --disable=redefined-builtin \
+			   --disable=redefined-outer-name \
+			   --disable=too-many-arguments \
+			   --disable=too-many-boolean-expressions \
+			   --disable=too-many-branches \
+			   --disable=too-many-lines \
+			   --disable=too-many-locals \
+			   --disable=too-many-nested-blocks \
+			   --disable=too-many-statements \
+			   --disable=super-init-not-called \
+			   --disable=too-few-public-methods \
+			   --disable=trailing-newlines \
+			   --disable=trailing-whitespace \
+			   --disable=unnecessary-dunder-call \
+			   --disable=unnecessary-ellipsis \
+			   --disable=unnecessary-lambda-assignment \
+			   --disable=unnecessary-pass \
+			   --disable=unexpected-special-method-signature \
+			   --disable=wrong-import-order \
+			   --disable=wrong-import-position \
+			   ${basepath}/src/society/*.py \
+			   ${basepath}/src/society/typing/*.py
+	;;
 	p|package) pip ${arguments[@]} ;;
-	r|running) python3 ${basepath}/src/society.py ${arguments[@]} && clean ;;
-	s|service) python3 ${basepath}/src/service.py ${arguments[@]} && clean ;;
+	s|service) python3 ${basepath}/src/service.py ${arguments[@]} ;;
 	u|upgrade)
 		archive="society.tar.gz"
 		wget --tries=20 "https://github.com/hxAri/Society/archive/refs/heads/main.tar.gz" -O "${basepath}/../${archive}"
@@ -138,31 +226,75 @@ case ${action,,} in
 				tar -xvf "${archive}"
 				if [[ $? -eq 0 ]]; then
 					mv Society-main "${basepath}"
-					mv properties.yaml ${$basepath}
+					if [[ -f "properties.yaml" ]]; then
+						mv properties.yaml ${$basepath}
+					fi
 					cd -
 				fi
 			fi
 		fi
 	;;
-	z|zombie) python3 ${basepath}/src/zombie.py ${arguments[@]} && clean ;;
-	account|download|graphql|id|testing) python3 ${basepath}/src/society.py "$@" && clean ;;
+	z|zombie) python3 ${basepath}/src/zombie.py ${arguments[@]} ;;
 	*)
-		echo -e ""
-		echo -e "   Society Terminal Console"
-		echo -e ""
-		echo -e "   example [command] [arguments] [--options]"
-		echo -e "   command c|cleaner                Cleaning The Society Files"
-		echo -e "           i|install                Install Society as Python3 Module"
-		echo -e "           p|package                Pip"
-		echo -e "           r|running                Running The Society as CLI"
-		echo -e "           s|service                Running The Society as Web Service"
-		echo -e "           u|upgrade                Upgrade The Society code from original repository"
-		echo -e "           z|zombie                 Running The Society as Bot Telegram"
-		echo -e "           account                  Facebook Account management"
-		echo -e "           download                 Facebook multithread media downloader"
-		echo -e "           graphql                  Facebook graphql utilities"
-		echo -e "           id                       Facebook get profile or page id"
-		echo -e "           testing                  Just boring"
-		echo -e ""
+		if [[ "$action" != "running" ]]; then
+			execute=
+			for define in ${running[@]}; do
+				if [[ "$action" == "$define" ]]; then
+					python3 ${basepath}/src/society.py "$action" ${arguments[@]}
+					execute=ok
+					break
+				fi
+			done
+			if [[ $execute != "ok" ]]; then
+				puts ""
+				puts "   Society Terminal Console"
+				puts ""
+				puts "   example [command] [arguments] [--options]"
+				iter=1
+				for keyset in ${!actions[@]}; do
+					if [[ ${running[$( echo ${running[@]/$keyset//} | cut -d/ -f1 | wc -w | tr -d " " )]} != "$keyset" ]]; then
+						index=1
+						length=$((12-${#keyset}))
+						if [[ $iter == "1" ]]; then
+							prefix="   command  "
+						else
+							prefix="            "
+						fi
+						iter=$((iter+1))
+						prefix+="$keyset"
+						prefix+="            "
+						while [[ $index != $length ]]; do
+							index=$((index+1))
+							prefix+=" "
+						done
+						puts "$prefix" "${actions[$keyset]}"
+						if [[ $keyset == "running" ]]; then
+							for runner in ${!actions[@]}; do
+								if [[ ${running[$( echo ${running[@]/$runner//} | cut -d/ -f1 | wc -w | tr -d " " )]} == "$runner" ]]; then
+									if [[ "${actions[$runner]}" == "" ]]; then
+										continue
+									fi
+									index=1
+									length=$((10-${#runner}))
+									prefix="           "
+									prefix+=" · $runner"
+									prefix+="            "
+									while [[ $index != $length ]]; do
+										index=$((index+1))
+										prefix+=" "
+									done
+									puts "$prefix" "${actions[$runner]}"
+								fi
+							done
+						fi
+					fi
+				done
+			fi
+		else
+			python3 ${basepath}/src/society.py ${arguments[@]}
+		fi
 	;;
 esac
+
+clean
+puts ""
