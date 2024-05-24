@@ -39,8 +39,8 @@ from requests.exceptions import (
 	ConnectTimeout as RequestConnectionTimeout, 
 	RequestException as RequestError
 )
+from sys import exit as systemExit
 from time import sleep
-from traceback import format_exc
 from typing import Any, Dict, Union
 from urllib.parse import urlparse, parse_qs as queryparse
 from urllib3.exceptions import (
@@ -248,25 +248,15 @@ def download( source:Str, mediaType:Str, directory:Str=None, proxies:Dict[Str,St
 	:return Str
 	"""
 	
-	from society.logging import Logging
-
-	Logging.info( "Downloading media {}", mediaType, thread=thread, start="\x0d" )
-	response = request( "GET", url=source, proxies=proxies, stream=stream )
-	response.json
+	response = request( "GET", url=source, proxies=proxies, stream=stream, thread=thread )
 	if response.status_code == 200:
-		extename = extension( response, mediaType, "jpg" if mediaType == "image" else "mp4" if mediaType == "video" else "" )
-		pathname = directory if directory is not None else f"history/contents"
+		extename = extension( response, mediaType, "jpg" if mediaType == "image" else "mp4" if mediaType == "video" else "", thread=thread )
+		pathname = directory if directory is not None else "history/contents"
 		filename = md5( source.encode( "utf-8" ) ).hexdigest()
 		fullname = f"{pathname}/{filename}.{extename}"
-		try:
-			Storage.mkdir( pathname )
-			Storage.touch( fullname, response.content, fmode="wb" )
-			Logging.info( "Downloaded media={}:{}", mediaType, fullname, thread=thread, start="\x0d" )
-			return fullname
-		except OSError as e:
-			Logging.error( "Uncaught OSError: {}", e.strerror, thread=thread, start="\x0d" )
-			Logging.error( "Failed download media mediaType={}", mediaType, thread=thread, start="\x0d" )
-		...
+		Storage.mkdir( pathname )
+		Storage.touch( fullname, response.content, fmode="wb" )
+		return fullname
 	return None
 
 def epochmillis( datestr:Str ) -> Int:
@@ -298,8 +288,6 @@ def extension( response:Response, type:Str="image", default:Str="jpg", thread:In
 	:return Str
 	"""
 	
-	from society.logging import Logging
-
 	contentType = response.headers['Content-Type']
 	matched = match( r"^(?:(?P<image>image)\/(?P<image_extension>jpg|jpeg|png|webp)|(?P<video>video\/(?P<video_extension>mp4|webm)))$", contentType )
 	if matched is not None:
@@ -307,9 +295,8 @@ def extension( response:Response, type:Str="image", default:Str="jpg", thread:In
 		group = f"{type}_extension"
 		if group in groups and groups[group]:
 			return groups[group]
-	else:
-		Logging.error( "Unsupported media type for Content-Type {}", contentType, thread=thread, start="\x0d" )
-	return default
+		return default
+	raise ValueError( f"Unsupported media type for Content-Type {contentType}", ( "thread", thread ) )
 
 def puts( *values:Any, base:Str="\x1b[0m", end:Str="\x0a", sep:Str="\x20", close:Union[Bool,Int]=False ) -> None:
 	
@@ -329,7 +316,7 @@ def puts( *values:Any, base:Str="\x1b[0m", end:Str="\x0a", sep:Str="\x20", close
 	
 	print( *[ colorize( base=base, string=value if isinstance( value, Str ) else repr( value ) ) for value in values ], end=end, sep=sep )
 	if close is not False:
-		exit( close )
+		systemExit( close )
 	...
 
 def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]=None, headers:Dict[Str,Str]=None, params:Dict[Str,Str]=None, payload:Dict[Str,Any]=None, proxies:Dict[Str,Str]=None, stream:Bool=False, timeout:Int=None, tries:Int=10, thread:Int=0 ) -> Response:
@@ -365,8 +352,6 @@ def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]
 	:return Response
 	"""
 	
-	from society.logging import Logging
-	
 	counter = 0
 	session = Session()
 	throwned = []
@@ -389,7 +374,7 @@ def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]
 	if tries <= 0:
 		tries = 10
 	while counter <= 10:
-		Logging.info( "Trying {} Request url=\"{}\"", method, url, thread=thread, start="\x0d" )
+		# Logging.info( "Trying {} Request url=\"{}\"", method, url, thread=thread, start="\x0d" )
 		try:
 			response = session.request( 
 				url=url, 
@@ -417,8 +402,7 @@ def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]
 						case "zstd":
 							content = ZstdDecompress( response.content )
 						case _:
-							Logging.warning( "Encoding {}: {}", encoding, response.content, thread=thread, start="\x0d" )
-							Logging.warning( "Unsupported content encoding {}", encoding, thread=thread, start="\x0d" )
+							raise UnicodeEncodeError( f"Unsupported encoding {encoding}" )
 					response._content = content
 				...
 			except BadGzipFile:
@@ -431,16 +415,15 @@ def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]
 		except BaseException as e:
 			instance = type( e )
 			throwable.append( e )
-			Logging.info( "{}: {}", typeof( e ), format_exc(), thread=thread, start="\x0d" )
 			if instance in throwable:
 				if isinstance( e, continueable ):
 					counter += 1
 					sleep( 2 )
 					continue
 			if throwned:
-				raise ExceptionGroup( f"An error occurred while sending a {method} request to url=\"{url}\"", throwned )
-			raise e
-	...
+				raise ExceptionGroup( f"An error occurred while sending a {method} request to url=\"{url}\"", throwned ) from e
+			raise TypeError( ( "prev", e ), ( "thread", thread ) ) from e
+	return None
 
 def serializeable( value:Any ) -> Bool:
 	
@@ -486,7 +469,7 @@ def strftime( format:Str, instance:Union[datetime,float,Int] ) -> Str:
 		zone = timezone( Properties.TimeZone )
 		try:
 			instance = datetime.fromtimestamp( int( instance ), zone )
-		except ValueError as e:
+		except ValueError:
 			instance = datetime.fromtimestamp( int( instance / 1000 ), zone )
 	if not isinstance( instance, datetime ):
 		raise TypeError( "Invalid \"instance\" parameter, value must be type datetime|Float|Int, {} passed".format( typeof( datetime ) ) )
