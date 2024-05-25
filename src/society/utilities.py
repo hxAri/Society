@@ -23,11 +23,11 @@
 #
 
 from builtins import int as Int, str as Str
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import CancelledError, Future, ThreadPoolExecutor, TimeoutError
 from json import loads as decoder, JSONDecodeError
 from time import sleep
 from traceback import format_exc, format_exception
-from typing import Any, Callable, Dict, Iterable, List, Literal
+from typing import Any, Callable, Dict, Iterable, List, Literal, MutableMapping, MutableSequence, TypeVar as Var
 
 from society.common import snakeCase, typeof
 from society.logging import Logging
@@ -37,16 +37,22 @@ from society.typing.result import Result
 from society.typing.threading import Threading
 
 
-def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, **kwargs:Any ) -> Iterable[Result[Literal['operation'],Val]]:
+Args = Var( "Args" )
+""" Arguments """
+
+Kwargs = Var( "Kwargs" )
+""" Key Arguments """
+
+
+def Executor( jobdesks:MutableSequence[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, **kwargs:Any ) -> Iterable[Result[Literal['operation'],Val]]:
 	
 	"""
 	Automation Command Line Execution
 	
-	:params List<Jobdesk> jobdesks
+	:params MutableSequence<Jobdesk> jobdesks
 	:params Int sleepy
 	:params Int worker
 	:params Int workerDelays
-	:params Int workerTimeout
 	:params Any **kwargs
 	
 	:return Iterable<Result>
@@ -97,7 +103,7 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 					for escape in jobdesk.escapes:
 						if isinstance( jobdeskParams[jobdeskKeyset], Str ):
 							jobdeskParams[jobdeskKeyset] = jobdeskParams[jobdeskKeyset].replace( f"\\{escape}", escape )
-				if jobdeskTyping in [ dict, Dict, list, List ]:
+				if jobdeskTyping in [ dict, Dict, list, List, MutableMapping, MutableSequence ]:
 					try:
 						jobdeskParams[jobdeskKeyset] = decoder( jobdeskParams[jobdeskKeyset] )
 					except JSONDecodeError as e:
@@ -121,9 +127,9 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 						elif jobdeskParams[jobdeskKeyset].lower() == "true":
 							jobdeskParams[jobdeskKeyset] = +1
 						jobdeskParams[jobdeskKeyset] = bool( jobdeskParams[jobdeskKeyset] )
-					elif jobdeskTyping in [ dict, Dict, list, List ]:
+					elif jobdeskTyping in [ dict, Dict, list, List, MutableMapping, MutableSequence ]:
 						jobdeskParams[jobdeskKeyset] = decoder( jobdeskParams[jobdeskKeyset] )
-						if jobdeskTyping in [ list, List ] and isinstance( jobdeskParams[jobdeskKeyset], dict ):
+						if jobdeskTyping in [ list, List, MutableMapping, MutableSequence ] and isinstance( jobdeskParams[jobdeskKeyset], dict ):
 							jobdeskParams[jobdeskKeyset] = list( jobdeskParams[jobdeskKeyset].values() )
 					elif not isinstance( jobdeskParams[jobdeskKeyset], jobdeskTyping ):
 						jobdeskParams[jobdeskKeyset] = jobdeskTyping( jobdeskParams[jobdeskKeyset] )
@@ -158,17 +164,16 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 					jobdeskThreadName = jobdesk.message.name
 			jobdeskFormats = { "execute": jobdeskExecute, **jobdeskParams }
 			del jobdeskParams[jobdeskDatasetName]
-			results = ThreadExecutor(
+			executes = ThreadExecutor(
 				name=jobdeskThreadName.format( **jobdeskFormats ),
-				callback=lambda value, thread: jobdeskExecute(
-					value, thread=thread, **jobdeskParams
-				),
+				callback=jobdeskExecute,
 				dataset=jobdeskDatasetValue,
 				sleepy=sleepy,
 				worker=worker,
 				workerDelays=workerDelays,
-				workerTimeout=workerTimeout
+				**jobdeskParams
 			)
+			results = list( execute for execute in executes )
 		elif jobdeskThread is ThreadRunner:
 			jobdeskLoading = "Executing {execute}"
 			jobdeskSuccess = None
@@ -178,12 +183,14 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 				if jobdesk.message.success:
 					jobdeskSuccess = jobdesk.message.success
 			jobdeskThread = ThreadRunner(
-				target=lambda: jobdeskExecute( **jobdeskParams, thread=1 ),
+				target=jobdeskExecute,
 				success=jobdeskSuccess,
 				loading=jobdeskLoading.format(
 					execute=jobdeskExecute,
 					**jobdeskParams
-				)
+				),
+				thread=1,
+				**jobdeskParams
 			)
 			if jobdeskThread.exception is not None:
 				exception = jobdeskThread.exception
@@ -195,40 +202,39 @@ def Executor( jobdesks:List[Jobdesk], sleepy:Int=1, worker:Int=2, workerDelays:I
 			yield Result( operation=jobdeskName, values=results )
 	...
 
-def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, workerTimeout:Int=120, *args:Any, **kwargs:Any ) -> List[Any]:
+def ThreadExecutor( name:Str, callback:Callable[[Any,Args,Kwargs,Int],Any], dataset:MutableSequence[Any], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, *args:Any, **kwargs:Any ) -> Iterable[Any]:
 	
 	"""
 	Short ThreadPoolExecutor
 	
 	:params Str name
-	:params Callable callback
-	:params List<Any> dataset
+	:params Callable<<Any,Args,Kwargs>,Any> callback
+	:params MutableSequence<Any> dataset
 	:params Int sleepy
 	:params Int worker
 	:params Int workerDelays
-	:params Int workerTimeout
 	:params Any *args
 	:params Any **kwargs
 	
-	:return List<Any>
+	:return Iterable<Any>
 	"""
 	
-	results:List[Any] = []
-	with ThreadPoolExecutor( max_workers=worker ) as executor:
-		futures:list[Future] = []
-		Logging.info( "Building Thread Pool Executor with {} workers for {}", worker, name, start="\x0d" )
+	results:MutableSequence[Any] = []
+	futures:list[Future] = []
+	with ThreadPoolExecutor( thread_name_prefix=name, max_workers=worker ) as executor:
+		Logging.info( "Building ThreadPoolExecutor with {} workers for {}", worker, name, start="\x0d" )
 		try:
 			for count, data in enumerate( dataset ):
 				Logging.info( "Starting thread for {}", name, start="\x0d", thread=count+1 )
 				futures.append( executor.submit( callback, data, *args, thread=count+1, **kwargs ) )
 				sleep( workerDelays if ( count +1 ) % worker == 0 else sleepy )
-			while all( future.done() for future in futures ) is False:
-				for count, future in enumerate( futures ):
-					if future.running() is True:
-						loading = f"Future thread worker {count+1} is running..."
+			while futures and all( future.done() for future in [ *futures ] ) is False:
+				for count, future in enumerate([ *futures ]):
+					if future.running():
+						loading = f"Future thread worker T<{count+1}> is running..."
 						length = len( loading )
 						position = -1
-						for i in loading:
+						for i in "\\|/-" * 16:
 							if position >= length:
 								position = -1
 							position += 1
@@ -239,30 +245,60 @@ def ThreadExecutor( name:Str, callback:Callable, dataset:List[Any], sleepy:Int=1
 									if messageChar.isupper() \
 									else messageChar.upper()
 								messagePrefix = loading[0:position-1]
+								messagePrefix = loading[:position-1]
 								messageSuffix = loading[position:]
 								messages = "".join([
 									messagePrefix, 
 									messageChar, 
 									messageSuffix
 								])
-							Logging.info( "{}", messages, end="\x20", start="\x0d", thread=count+1 )
+							Logging.info( "{}", messages, end="\x20", start="\x0d", thread=i )
 							sleep( 0.1 )
+						try:
+							throwned = future.exception( 0.4 )
+							if isinstance( throwned, BaseException ):
+								Logging.error( "Future thread worker {} is raised {}: {}", count+1, typeof( throwned ), "\x0a".join( format_exception( throwned ) ), thread=count+1 )
+								Logging.error( "Future thread worker {} is deleted from futures", count+1, thread=count+1 )
+								del futures[count]
+						except CancelledError:
+							...
+						except TimeoutError:
+							...
+						finally:
+							...
+						...
 					...
 				...
-			Logging.info( "A total of {} worker threads have been completed", len( futures ), start="\x0d" )
-			Logging.info( "ThreadPoolExecutor for {} stoped", name, start="\x0d" )
-			results = list( future.result() for future in futures )
+			...
 		except BaseException as e:
 			if isinstance( e, KeyboardInterrupt ):
+				Logging.error( "ThreadPoolExecutor has been shuting down", start="\x0a", thread="T" )
 				executor.shutdown()
-				Logging.info( "ThreadPoolExecutor has been shuting down", start="\x0a" )
 			else:
-				Logging.error( "Uncaught {}: {}", typeof( e ), format_exc(), start="\x0d" )
-			Logging.info( "Program has ben stopped", start="\x0a", close=1 )
+				Logging.error( "{}: {}", typeof( e ), "\x0a".join( format_exception( e ) ), start="\x0d", thread="T" )
+			...
 		...
-	return results
+		Logging.warning( "ThreadPoolExecutor enumerating futures", start="\x0d", thread="T" )
+		for i, future in enumerate( futures ):
+			if future.cancelled() is True:
+				Logging.warning( "Future thread worker T<{}> is cancelled", i+1, start="\x0d", thread=i+1 )
+				continue
+			try:
+				yield future.result( 1 )
+				results.append( future )
+			except CancelledError:
+				Logging.warning( "Future thread worker T<{}> is cancelled", i+1, start="\x0d", thread=i+1 )
+			except TimeoutError:
+				Logging.warning( "Future thread worker T<{}> is timeout", i+1, start="\x0d", thread=i+1 )
+			except BaseException as e:
+				Logging.error( "{}: {}", typeof( e ), "\x0a".join( format_exception( e ) ), start="\x0d", thread=i+1 )
+			...
+		Logging.info( "A total of {} worker threads have been completed", len( results ), start="\x0d", thread="T" )
+		Logging.info( "ThreadPoolExecutor for {} stoped", name, start="\x0d", thread="T" )
+	results = None
+	futures = None
 
-def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=None, name=None, args=None, kwargs=None ) -> Threading:
+def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable[[Args,Kwargs],Any]=None, name=None, *args:Any, **kwargs:Any ) -> Threading:
 	
 	"""
 	Short Threading
@@ -270,7 +306,7 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=Non
 	:params Str loading
 	:params Str success
 	:params Any group
-	:params Callable target
+	:params Callable<<Args,Kwargs>,Any> target
 	:params Str name
 	:params Any args
 	:params Any kwargs
@@ -282,27 +318,31 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable=Non
 		thread = Threading( group=group, target=target, name=name, args=args, kwargs=kwargs )
 		thread.start()
 		while thread.is_alive():
-			length = len( loading )
-			position = -1
-			for i in "\\|/-" * 16:
-				if position >= length:
-					position = -1
-				position += 1
-				messages = loading
-				if position >= 1:
-					messageChar = loading[position-1:position]
-					messageChar = messageChar.lower() \
-						if messageChar.isupper() \
-						else messageChar.upper()
-					messagePrefix = loading[0:position-1]
-					messageSuffix = loading[position:]
-					messages = "".join([
-						messagePrefix, 
-						messageChar, 
-						messageSuffix
-					])
-				Logging.info( "{}", messages, end="\x20", start="\x0d", thread=i )
-				sleep( 0.1 )
+			try:
+				length = len( loading )
+				position = -1
+				for i in "\\|/-" * 16:
+					if position >= length:
+						position = -1
+					position += 1
+					messages = loading
+					if position >= 1:
+						messageChar = loading[position-1:position]
+						messageChar = messageChar.lower() \
+							if messageChar.isupper() \
+							else messageChar.upper()
+						messagePrefix = loading[0:position-1]
+						messageSuffix = loading[position:]
+						messages = "".join([
+							messagePrefix, 
+							messageChar, 
+							messageSuffix
+						])
+					Logging.info( "{}", messages, end="\x20", start="\x0d", thread=i )
+					sleep( 0.1 )
+			except ( EOFError, KeyboardInterrupt ):
+				...
+			...
 		Logging.info( "{}", success if success is not None else loading, end="\x0a", start="\x0d" )
 		return thread
 	except BaseException as e:
