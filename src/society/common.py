@@ -34,6 +34,7 @@ from random import choice
 from re import IGNORECASE, MULTILINE, S
 from re import compile, match, split, sub as substr
 from requests import Response, Session
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth, HTTPProxyAuth
 from requests.exceptions import (
 	ConnectionError as RequestConnectionError, 
 	ConnectTimeout as RequestConnectionTimeout, 
@@ -41,7 +42,7 @@ from requests.exceptions import (
 )
 from sys import exit as systemExit
 from time import sleep
-from typing import Any, Dict, Union
+from typing import Any, MutableMapping, MutableSequence, Tuple, Union
 from urllib.parse import urlparse, parse_qs as queryparse
 from urllib3.exceptions import (
 	ConnectionError as UrllibConnectionError,
@@ -160,12 +161,12 @@ def colorize( string:Str, base:Str=None ) -> Str:
 					groups = matched.groupdict().keys()
 					for group in groups:
 						if group in regexps and \
-							isinstance( regexps[group], dict ) and \
+							isinstance( regexps[group], MutableMapping ) and \
 							isinstance( matched.group( group ), str ):
 							colorize = regexps[group]['colorize']
 							break
 					chars = matched.group( 0 )
-					if "rematch" in regexps[group] and isinstance( regexps[group]['rematch'], dict ):
+					if "rematch" in regexps[group] and isinstance( regexps[group]['rematch'], MutableMapping ):
 						pass
 					if "handler" in regexps[group] and callable( regexps[group]['handler'] ):
 						result += escape
@@ -227,7 +228,7 @@ def converter( readable:Str ) -> Int:
 def delays() -> None:
 	sleep( choice([ 1.3, 1.6, 1.9, 2, 2.2, 2.4, 2.6 ]) )
 
-def download( source:Str, mediaType:Str, directory:Str=None, proxies:Dict[Str,Str]=None, stream:Bool=False, thread:Int=0 ) -> Str:
+def download( source:Str, mediaType:Str, directory:Str=None, proxies:MutableMapping[Str,Str]=None, stream:Bool=False, thread:Int=0 ) -> Str:
 
 	"""
 	Download media content e.g image, video
@@ -238,7 +239,7 @@ def download( source:Str, mediaType:Str, directory:Str=None, proxies:Dict[Str,St
 		The file media type, e.g image, video
 	:params Str directory
 		The media directory save
-	:params Dict<Str,Str> proxies
+	:params MutableMapping<Str,Str> proxies
 		The Http request proxies
 	:params Bool stream
 		Allow request stream
@@ -319,7 +320,7 @@ def puts( *values:Any, base:Str="\x1b[0m", end:Str="\x0a", sep:Str="\x20", close
 		systemExit( close )
 	...
 
-def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]=None, headers:Dict[Str,Str]=None, params:Dict[Str,Str]=None, payload:Dict[Str,Any]=None, proxies:Dict[Str,Str]=None, stream:Bool=False, timeout:Int=None, tries:Int=10, thread:Int=0 ) -> Response:
+def request( method:Str, url:Str, auth:Union[HTTPBasicAuth,HTTPDigestAuth,HTTPProxyAuth,Tuple[Str,Str]]=None, data:MutableMapping[Str,Any]=None, cookies:MutableMapping[Str,Str]=None, headers:MutableMapping[Str,Str]=None, params:MutableMapping[Str,Str]=None, payload:MutableMapping[Str,Any]=None, proxies:MutableMapping[Str,Str]=None, stream:Bool=False, timeout:Int=None, tries:Int=10, thread:Int=0 ) -> Response:
 	
 	"""
 	Send HTTP Request
@@ -328,17 +329,19 @@ def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]
 		Http request method
 	:params Str url
 		Http request url target
-	:params Dict<Str, Any> data
+	:params HTTPBasicAuth|HTTPDigestAuth|HTTPProxyAuth|Tuple<Str,Str> auth
+		Http request authentication
+	:params MutableMapping<Str, Any> data
 		Http request multipart form data
-	:params Dict<Str, Str> cookies
+	:params MutableMapping<Str, Str> cookies
 		Http request cookies
-	:params Dict<Str, Str> headers
+	:params MutableMapping<Str, Str> headers
 		Http request headers
-	:params Dict<Str, Str> params
+	:params MutableMapping<Str, Str> params
 		Http request parameters
-	:params Dict<Str, Any> payload
+	:params MutableMapping<Str, Any> payload
 		Http request json payload data
-	:params Dict<Str, Any> proxies
+	:params MutableMapping<Str, Any> proxies
 		Http request proxies
 	:params Bool stream
 		Allow request stream
@@ -379,6 +382,7 @@ def request( method:Str, url:Str, data:Dict[Str,Any]=None, cookies:Dict[Str,Str]
 			response = session.request( 
 				url=url, 
 				data=data, 
+				auth=auth,
 				json=payload, 
 				stream=stream,
 				method=method, 
@@ -435,7 +439,7 @@ def serializeable( value:Any ) -> Bool:
 	:return Bool
 	"""
 	
-	return isinstance( value, ( dict, list, tuple, str, int, float, bool ) ) or value is None
+	return isinstance( value, ( MutableMapping, MutableSequence, tuple, str, int, float, bool ) ) or value is None
 
 def snakeCase( keyword:Str ) -> Str:
 
@@ -509,7 +513,7 @@ def typeof( instance:Any ) -> Str:
 		instance = type( instance )
 	return instance.__name__
 
-def urlparser( url:Str ) -> Dict[Str,Any]:
+def urlparser( url:Str ) -> MutableMapping[Str,Any]:
 
 	"""
 	The URL parser
@@ -517,7 +521,7 @@ def urlparser( url:Str ) -> Dict[Str,Any]:
 	:params Str url
 		The URL want to be parse
 
-	:return Dict<Str, Any>
+	:return MutableMapping<Str, Any>
 	"""
 
 	parsed = urlparse( url )
@@ -536,7 +540,7 @@ def unameMatcher( url:Str ) -> Str:
 			username = matched.group( "username" )
 			if username == "\x70\x72\x6f\x66\x69\x6c\x65\x2e\x70\x68\x70":
 				parsed = urlparser( url )
-				return parsed['params']['id'] if not isinstance( parsed['params']['id'], list ) else parsed['params']['id'].pop()
+				return parsed['params']['id'] if not isinstance( parsed['params']['id'], MutableSequence ) else parsed['params']['id'].pop()
 			return username
 		...
 	return None
