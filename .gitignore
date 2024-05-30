@@ -4,13 +4,25 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Society Application Properties.
+properties.yaml
+properties.yml
+
 # Society History Files.
 history/**
 history/contents/**
 history/request/**
 
+# Society Virtual Environment.
+.virtual
+env
+
 # Society Idk Wtf is this.
+backups
 objects
+
+# Society Any Backup files.
+*-backup.*
 
 # Society Resource Files.
 resources/**
