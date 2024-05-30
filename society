@@ -22,26 +22,11 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
-# For compatibility system.
-if [[ ! $(command -v puts) ]]; then
-	function puts() {
-		echo -e "\x1b[0m$@"
-	}
-fi
+# Clear terminal screen.
+clear
 
 # Target basename.
 pathname=$(basename $0)
-
-# Please change this with your virtual enviroment excecutable.
-virtual="/home/virtual/bin/activate"
-
-# Clear the terminal screens.
-clear
-
-if [[ ! -f $virtual ]]; then
-	echo -e "${virtual}: no such virtual environment"
-	exit 1
-fi
 
 # Change current working directory.
 cd $(dirname $0)
@@ -53,16 +38,108 @@ do
     cd $(dirname $pathname)
     pathname=$(basename $pathname)
 done
-
-# Activate the python virtual environment.
-source $virtual
-
+ 
 # Get the Society basepath.
 basepath=$(pwd -P)
 
+# By default the Society saves the virtual environment activation
+# location in a file called .virtual in the Project directory.
+virtualization="${basepath}/.virtual"
+virtual=
+
+# For compatibility system.
+if [[ ! $(command -v puts) ]]; then
+	function puts() {
+		echo -e "\x1b[0m$@"
+	}
+fi
+
+# Handle setup python module requirements.
+function modinstall() {
+	local envfiname=$1
+	read -e -p "$(puts "$envfiname: install python module requirements [Y/n] ")" installmod
+	if [[ "${installmod^^}" == "Y" ]]; then
+		source "$envfiname"
+		if [[ $? -eq 0 ]]; then
+			if [[ ! -f "${basepath}/requirements.txt" ]]; then
+				puts "${basepath}/requirements.txt: no such file or directory"
+				exit 1
+			fi
+			pip install -r "${basepath}/requirements.txt"
+			if [[ $? -ne 0 ]]; then
+				puts "${basepath}/requirements.txt: failed install module requirements"
+				exit 1
+			fi
+			deactivate
+			puts "${basepath}/requirements.txt: all module requirements installed"
+			puts "please re-run this programs"
+			exit 0
+		else
+			puts "$envfiname: failed to activate python virtual environment"
+			exit 1
+		fi
+	else
+		puts "$envfiname: aborted"
+		exit 1
+	fi
+}
+
+# Handle create python virtual environment.
+function envcreate() {
+	local envfiname=$1
+	puts "$envfiname: creating virtual environment"
+	python3 -m venv "$envfiname"
+	if [[ $? -ne 0 ]]; then
+		puts "$envfiname: failed create virtual environment"
+		exit 1
+	fi
+	echo "$envfiname" > "$virtualization"
+	if [[ $? -ne 0 ]]; then
+		puts "$envfiname: failed create virtual environment"
+		exit 1
+	fi
+	modinstall "$envfiname"
+}
+
+if [[ ! -f $virtualization ]]; then
+	envfiname=
+	puts "input virtual environment activation: e.g /home/$(whoami)/virtual/bin/activate"
+	while [[ ! -f $virtualization ]]; do
+		read -e -p "$(puts pathname:) " envfiname
+		if [[ -f "$envfiname" ]]; then
+			echo "$envfiname" > "$virtualization"
+			if [[ $? -ne 0 ]]; then
+				puts "$envfiname: failed create virtual environment"
+				exit 1
+			fi
+			modinstall "$envfiname"
+		elif [[ -d "$envfiname" ]]; then
+			if [[ $(ls -A "$envfiname") ]]; then
+				read -e -p "$(puts "${envfiname}: This directory is not empty are you sure [Y/n] ")" envforcec
+				if [[ "${envforcec^^}" != "Y" ]]; then
+					envfiname=
+					continue
+				fi
+				envcreate "$envfiname"
+			fi
+		else
+			puts "$envfiname: no such file or directory"
+			read -e -p "$(puts "$envfiname: create the virtual environment here [Y/n] ")" envcreate
+			if [[ "${envcreate^^}" != "Y" ]]; then
+				envfiname=
+				continue
+			fi
+			envcreate "$envfiname"
+		fi
+	done
+fi
+
+# Read saved Society virtual environment activation.
+virtual="$(cat $virtualization)"
+
 # Clean Python cache Byte-Code compiled.
 function clean() {
-	for cache in $(find ${basepath} | grep __pycache__); do
+	for cache in $(find "${basepath}/" | grep "__pycache__"); do
 		if [[ -d $cache ]]; then
 			rm -rf $cache
 			if [[ $? -ne 0 ]]; then
@@ -77,6 +154,7 @@ declare -A actions=(
 	[cleaner]="Cleaning The Society Files"
 	[download]="Facebook multithread media downloader"
 	[graphql]="Facebook graphql utilities"
+	[help]="Show this help"
 	[install]="Install Society as Python3 Module"
 	[id]="Facebook get profile or page id"
 	[linting]="Linting Society code before commit"
@@ -96,6 +174,7 @@ running=(
 	"account"
 	"download"
 	"graphql"
+	"help"
 	"id"
 	"parser"
 	"target"
@@ -112,6 +191,13 @@ else
 		fi
 		i=$((i+1))
 	done
+fi
+
+# Activate the python virtual environment.
+source "$virtual"
+
+if [[ $? -ne 0 ]]; then
+	puts "$virtual: failed to activate python virtual environment"
 fi
 
 case ${action,,} in
@@ -131,7 +217,6 @@ case ${action,,} in
 				length=${#prefix}
 				if [[ "${prefix:$((length-1)):${#length}}" == "*" ]]; then
 					if [[ "$prefix" == "*" ]]; then
-						
 						continue
 					fi
 					target="${basepath}/$content"
@@ -167,7 +252,7 @@ case ${action,,} in
 		python3 -m pylint --argument-naming-style=camelCase \
 			   --attr-naming-style=camelCase \
 			   --class-attribute-naming-style=any \
-			   --class-const-naming-style=UPPER_CASE \
+			   --class-const-naming-style=any \
 			   --class-naming-style=PascalCase \
 			   --const-naming-style=UPPER_CASE \
 			   --extension-pkg-allow-list=pyzstd \
@@ -176,7 +261,7 @@ case ${action,,} in
 			   --max-attributes=30 \
 			   --max-public-methods=60 \
 			   --method-naming-style=camelCase \
-			   --good-names="e,Executor,i,id,u,k,pk,ThreadExecutor,ThreadRunner,v" \
+			   --good-names="e,Executor,i,id,u,k,ThreadExecutor,ThreadRunner,v" \
 			   --ignore-docstrings=y \
 			   --ignore-long-lines="[^\n]+" \
 			   --indent-string="\t" \
@@ -211,28 +296,72 @@ case ${action,,} in
 			   --disable=unexpected-special-method-signature \
 			   --disable=wrong-import-order \
 			   --disable=wrong-import-position \
+			   ${basepath}/setup.py \
 			   ${basepath}/src/society/*.py \
+			   ${basepath}/src/society/actions/*.py \
 			   ${basepath}/src/society/typing/*.py
 	;;
 	p|package) pip ${arguments[@]} ;;
 	s|service) python3 ${basepath}/src/service.py ${arguments[@]} ;;
 	u|upgrade)
-		archive="society.tar.gz"
-		wget --tries=20 "https://github.com/hxAri/Society/archive/refs/heads/main.tar.gz" -O "${basepath}/../${archive}"
-		if [[ $? -eq 0 ]]; then
-			cd "${basepath}/.."
-			rm -rf "${basepath}"
-			if [[ $? -eq 0 ]]; then
-				tar -xvf "${archive}"
-				if [[ $? -eq 0 ]]; then
-					mv Society-main "${basepath}"
-					if [[ -f "properties.yaml" ]]; then
-						mv properties.yaml ${$basepath}
-					fi
-					cd -
-				fi
-			fi
+		puts "$basepath: this directory will be deleted permanently"
+		read -e -p "$(puts "are you sure want to upgrade [Y/n] ")" upgrade
+		if [[ "${upgrade^^}" != "Y" ]]; then
+			puts "aborted"
+			exit 1
 		fi
+		pathname="$(dirname $basepath)"
+		basename="$(basename $basepath)"
+		archive="Society-main.tar.gz"
+		backup="Society-backup.tar.gz"
+		target="https://github.com/hxAri/Society/archive/refs/heads/main.tar.gz"
+		puts "$backup: backing source code"
+		cd "$pathname"
+		if [[ $? -ne 0 ]]; then
+			puts "$pathname: failed change current working directory"
+			exit 1
+		fi 
+		tar -cvf "${backup}" "$basepath"
+		if [[ $? -ne 0 ]]; then
+			puts "$backup: failed backup source code"
+			exit 1
+		fi
+		cd -
+		if [[ $? -ne 0 ]]; then
+			puts "$basename: failed change to previous working directory"
+			exit 1
+		fi 
+		puts "$archive: downloading source code from repository"
+		wget --tries=20 $target -O "${pathname}/${archive}"
+		if [[ $? -ne 0 ]]; then
+			puts "$archive: failed download source code"
+			exit 1
+		fi
+		puts "$archive: extracting the contents"
+		tar -xvf "${pathname}/${archive}" -C "$pathname"
+		if [[ $? -ne 0 ]]; then
+			puts "$archive: failed to extract the contents"
+			exit 1
+		fi
+		puts "$basename: removing old directory"
+		rm -rf "${pathname}/${basename}"
+		if [[ $? -ne 0 ]]; then
+			puts "$basename: failed to remove the directory"
+			exit 1
+		fi
+		puts "Society-main: moving the directory"
+		mv "${pathname}/Society-main" "${pathname}/${basename}"
+		if [[ $? -ne 0 ]]; then
+			puts "Society-main: failed to move the directory"
+			exit 1
+		fi
+		puts "Society: successfully updated"
+		echo "$virtual" > "$virtualization"
+		if [[ $? -ne 0 ]]; then
+			puts "$virtual: failed create virtual environment"
+			exit 1
+		fi
+		modinstall "$virtual"
 	;;
 	z|zombie) python3 ${basepath}/src/zombie.py ${arguments[@]} ;;
 	*)
@@ -296,5 +425,11 @@ case ${action,,} in
 	;;
 esac
 
+# Clean python cache files.
 clean
+
+# Deactivate python virtual environment.
+deactivate
+
 puts ""
+exit 0
