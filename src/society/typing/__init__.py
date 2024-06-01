@@ -29,6 +29,7 @@ from society.typing.browser import Browser, Driver
 from society.typing.jobdesk import Jobdesk
 from society.typing.immutable import Immutable
 from society.typing.map import Map
+from society.typing.parser import Parser
 from society.typing.properties import Properties
 from society.typing.readonly import Readonly
 from society.typing.result import Result
