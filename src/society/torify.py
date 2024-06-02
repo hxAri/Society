@@ -23,54 +23,40 @@
 #
 
 from builtins import bool as Bool, int as Int, str as Str
+from requests.auth import HTTPProxyAuth
 from socks import ProxyConnectionError
 from stem.control import Controller
 from stem import ControllerError, Signal, SocketError
 from typing import Any, Dict, final
 
-from society.common import request
+from society.requests import request
 from society.logging import Logging
+from society.typing import Properties
 
 
 @final
 class Torify:
 	
+	""" Torify Utility """
+	
 	@staticmethod
-	def ipInfo( proxies:Dict[Str,Str]=None, complex:Bool=False ) -> Dict[Str,Any]:
+	def ipInfo( auth:HTTPProxyAuth=None, proxies:Dict[Str,Str]=None ) -> Dict[Str,Any]:
 		
 		"""
 		Get current ip address.
 		
+		:params HTTPProxyAuth auth
 		:params Dict<Str,Str> proxies
-		:params Bool complex
-			When the complex is allowed we wel send 2x 
-			request for get ip address information
 		
 		:return Dict<Str,Any>
 			The str of ip address
 		"""
 		
+		hostname = "https://inet-ip.info/json"
 		try:
-			response = request( "GET", "https://api.ipify.org/?format=json", proxies=proxies )
+			response = request( "GET", hostname, auth=auth, proxies=proxies )
 			if response is not None:
-				if complex is True:
-					address = response.json()['ip']
-					
-					"""
-					Deliberately doing two requests, because every time I try to 
-					get the IP address information, the Tor proxy is often hit or 
-					detected and cannot get the IP address information.
-					"""
-					
-					# response = request( "GET", f"https://ipapi.co/{address}/json" )
-					response = request( "GET", f"http://ip-api.com/json/{address}" )
-					if response is None:
-						return None
-					# Logging.info( "{}", response.text, start="\x0d" )
-				contents = response.json()
-				if "error" not in contents:
-					return contents
-				Logging.error( "{}:{}", contents['reason'], contents['message'], start="\x0d" )
+				return response.json()
 		except ProxyConnectionError as e:
 			Logging.error( "Uncaught ProxyConnectionError: {}", e, start="\x0d" )
 		return None
@@ -93,16 +79,18 @@ class Torify:
 		:return Dict<Str,Any>
 		"""
 		
-		ipInfo = Torify.ipInfo()
+		ipInfo = Properties.IpInfo
+		if ipInfo is None:
+			ipInfo = Torify.ipInfo()
 		if ipInfo is None:
 			Logging.error( "Failed getting IP Address info", start="\x0d" )
 			return None
-		previousIp = ipInfo['ip'] if "ip" in ipInfo else ipInfo['query']
+		previousIp = ipInfo['ipAddress']
 		Logging.info( "Trying to re-new IP Address address={}", previousIp, start="\x0d" )
 		try:
 			with Controller.from_port( port=port ) as controller:
 				controller.authenticate( password=password )
-				controller.signal( Signal.NEWNYM )
+				controller.signal( getattr( Signal, "NEWNYM" ) )
 		except SocketError as e:
 			Logging.error( "Uncaught SocketError: {}", e, start="\x0d" )
 			Logging.error( "Failed to estabilish connection from={}", previousIp, start="\x0d" )
@@ -111,12 +99,13 @@ class Torify:
 			Logging.error( "Uncaught ControllerError: {}", e, start="\x0d" )
 			Logging.error( "Failed sending Signal from={}", previousIp, start="\x0d" )
 			Logging.error( "Failed to update Ip Address from={}", previousIp, start="\x0d" )
-		ipInfo = Torify.ipInfo( proxies=proxies, complex=True )
+		ipInfo = Torify.ipInfo( proxies=proxies )
 		if ipInfo is None:
 			Logging.error( "Failed getting IP Address info", start="\x0d" )
 			return None
-		currentIp = ipInfo['ip'] if "ip" in ipInfo else ipInfo['query']
+		currentIp = ipInfo['ipAddress']
 		if currentIp != previousIp:
+			Properties.IpInfo = ipInfo
 			Logging.info( "The IP Address has been updated from={} to={}", previousIp, currentIp, start="\x0d" )
 			return ipInfo
 		Logging.critical( "The IP Address does not change from={}", previousIp, start="\x0d" )
