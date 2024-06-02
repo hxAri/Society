@@ -202,14 +202,14 @@ def Executor( jobdesks:MutableSequence[Jobdesk], sleepy:Int=1, worker:Int=2, wor
 			yield Result( operation=jobdeskName, values=results )
 	...
 
-def ThreadExecutor( name:Str, callback:Callable[[Any,Args,Kwargs,Int],Any], dataset:MutableSequence[Any], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, *args:Any, **kwargs:Any ) -> Iterable[Any]:
+def ThreadExecutor( name:Str, callback:Callable[[Any,Args,Kwargs,Int],Any], dataset:Iterable[Any], sleepy:Int=1, worker:Int=2, workerDelays:Int=10, *args:Any, **kwargs:Any ) -> Iterable[Any]:
 	
 	"""
 	Short ThreadPoolExecutor
 	
 	:params Str name
 	:params Callable<<Any,Args,Kwargs>,Any> callback
-	:params MutableSequence<Any> dataset
+	:params Iterable<Any> dataset
 	:params Int sleepy
 	:params Int worker
 	:params Int workerDelays
@@ -257,8 +257,8 @@ def ThreadExecutor( name:Str, callback:Callable[[Any,Args,Kwargs,Int],Any], data
 						try:
 							throwned = future.exception( 0.4 )
 							if isinstance( throwned, BaseException ):
-								Logging.error( "Future thread worker {} is raised {}: {}", count+1, typeof( throwned ), "\x0a".join( format_exception( throwned ) ), thread=count+1 )
-								Logging.error( "Future thread worker {} is deleted from futures", count+1, thread=count+1 )
+								Logging.error( "Future thread worker {} is raised {}: {}", count+1, typeof( throwned ), "\x0a".join( format_exception( throwned ) ), thread=count+1, start="\x0d" )
+								Logging.error( "Future thread worker {} is deleted from futures", count+1, thread=count+1, start="\x0d" )
 								del futures[count]
 						except CancelledError:
 							...
