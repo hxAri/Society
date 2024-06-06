@@ -254,7 +254,7 @@ case ${action,,} in
 			   --class-attribute-naming-style=any \
 			   --class-const-naming-style=any \
 			   --class-naming-style=PascalCase \
-			   --const-naming-style=UPPER_CASE \
+			   --const-naming-style=any \
 			   --extension-pkg-allow-list=pyzstd \
 			   --variable-naming-style=camelCase \
 			   --function-naming-style=camelCase \
