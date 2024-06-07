@@ -23,67 +23,70 @@
 #
 
 from builtins import bool as Bool, int as Int, str as Str
-from datetime import datetime
 from inspect import getframeinfo, stack
 from os import get_terminal_size as gts
-from pytz import timezone
 from random import randint
-from typing import Any, Dict, Union
+from threading import current_thread as CurrentThread, main_thread as MainThread
+from typing import Any, Final, MutableMapping, Union
 
-from society.common import puts
-from society.storage import BASEPATH, BASEVENV
+from society.common import puts, strftime, timestamp
+from society.constants import BASEPATH, BASEVENV
+from society.storage import Storage
 from society.typing.properties import Properties
-
-
-CRITICAL:Int = randint( 10, 99 )
-DEBUG:Int = randint( 20, 99 )
-ERROR:Int = randint( 30, 99 )
-FATAL:Int = randint( 40, 99 )
-INFO:Int = randint( 50, 99 )
-WARNING:Int = randint( 60, 99 )
 
 
 class Logging:
 	
 	""" Simple Logging utility """
-
-	COUNTER:Int = 1
+	
+	Counter:Int = 1
 	""" Logging counter """
 	
-	CRITICAL:Int = CRITICAL
-	DEBUG:Int = DEBUG
-	ERROR:Int = ERROR
-	FATAL:Int = FATAL
-	INFO:Int = INFO
-	WARNING:Int = WARNING
-
-	LEVELS:Dict[Int,Str] = {
-		CRITICAL: "C",
-		DEBUG: "D",
-		ERROR: "E",
-		FATAL: "F",
-		INFO: "I",
-		WARNING: "W"
-	}
+	Critical:Final[Int] = randint( 10, 99 )
+	""" Logging Critical Level """
+	
+	Debug:Final[Int] = randint( 20, 99 )
+	""" Logging Debug Level """
+	
+	Error:Final[Int] = randint( 30, 99 )
+	""" Logging Error Level """
+	
+	Fatal:Final[Int] = randint( 40, 99 )
+	""" Logging Fatal Level """
+	
+	Info:Final[Int] = randint( 50, 99 )
+	""" Logging Info Level """
+	
+	Warning:Final[Int] = randint( 60, 99 )
+	""" Logging Warning Level """
+	
+	Levels:MutableMapping[Int,Str] = {}
 	""" Logging level aliases """
-
-	DATETIME_FORMAT:Str = "%Y-%m-%d %H:%M:%S"
+	
+	Levels[Critical] = "C"
+	Levels[Debug] = "D"
+	Levels[Error] = "E"
+	Levels[Fatal] = "F"
+	Levels[Info] = "I"
+	Levels[Warning] = "W"
+	
+	DateTimeFormat:Str = "%Y-%m-%d %H:%M:%S"
 	""" Logging datetime format """
-
-	PREVIOUS_LENGTH:Int = -1
+	
+	PreviousLength:Int = -1
 	""" Previous logging length """
-
-	MESSAGE_FORMAT_COMPLEX:Str = "-- [{level}] -- {datetime} {file}:{func}:{line} {message}"
-	MESSAGE_FORMAT_THREAD_COMPLEX:Str = "-- [{level}] -- {datetime} {file}:{func}:{line}:{thread} {message}"
-	MESSAGE_FORMAT:Str = "-- [{level}] -- {datetime} {message}"
-	MESSAGE_FORMAT_THREAD:Str = "-- [{level}] -- {datetime} {thread} {message}"
+	
+	MessageFormatComplex:Str = "-- [{level}] -- {datetime} {file}:{func}:{line} {message}"
+	MessageFormatThreadComplex:Str = "-- [{level}] -- {datetime} {file}:{func}:{line}:{thread} {message}"
+	MessageFormat:Str = "-- [{level}] -- {datetime} {message}"
+	MessageFormatThread:Str = "-- [{level}] -- {datetime} {thread} {message}"
 	""" Logging message formatter """
-
-	SAVE:Bool = False
-	""" Allow logging message save """
-
+	
+	Store:Bool = False
+	""" Allow logging store messages log """
+	
 	@staticmethod
-	def critical( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def critical( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write critical log into terminal screen.
@@ -96,7 +99,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -106,10 +109,10 @@ class Logging:
 		:return None
 		"""
 		
-		Logging.write( CRITICAL, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
-
+		Logging.write( Logging.Critical, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+	
 	@staticmethod
-	def debug( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def debug( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write debug log into terminal screen.
@@ -122,7 +125,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -133,11 +136,11 @@ class Logging:
 		"""
 		
 		if Properties.Environment == "development":
-			Logging.write( DEBUG, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+			Logging.write( Logging.Debug, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
 		...
-
+	
 	@staticmethod
-	def error( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def error( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write error log into terminal screen.
@@ -150,7 +153,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -160,10 +163,10 @@ class Logging:
 		:return None
 		"""
 		
-		Logging.write( ERROR, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
-
+		Logging.write( Logging.Error, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+	
 	@staticmethod
-	def fatal( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def fatal( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write fatal log into terminal screen.
@@ -176,7 +179,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -186,10 +189,10 @@ class Logging:
 		:return None
 		"""
 		
-		Logging.write( FATAL, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
-
+		Logging.write( Logging.Fatal, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+	
 	@staticmethod
-	def info( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def info( message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write info log into terminal screen.
@@ -202,7 +205,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -212,10 +215,10 @@ class Logging:
 		:return None
 		"""
 		
-		Logging.write( INFO, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
-
+		Logging.write( Logging.Info, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+	
 	@staticmethod
-	def warning( message:Str, *args, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def warning( message:Str, *args, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write warning log into terminal screen.
@@ -228,7 +231,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -238,10 +241,10 @@ class Logging:
 		:return None
 		"""
 		
-		Logging.write( WARNING, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
-
+		Logging.write( Logging.Warning, message, *args, start=start, end=end, thread=thread, close=close, **kwargs )
+	
 	@staticmethod
-	def write( level:Int, message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Int=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
+	def write( level:Int, message:Str, *args:Any, start:Str="", end:Str="\x0a", thread:Union[Int,Str]=0, close:Union[Bool,Int]=False, **kwargs:Any ) -> None:
 		
 		"""
 		Write log into terminal screen.
@@ -256,7 +259,7 @@ class Logging:
 			The prefix of output line
 		:params Str end
 			The end of output line
-		:params Int thread
+		:params Int|Str thread
 			Current thread position number
 		:params Int close
 			Close the program with exit code
@@ -267,33 +270,44 @@ class Logging:
 		"""
 		
 		color = ""
+		status = "U"
 		stacks = stack()
-		tiframe = getframeinfo( stacks[( 1 if len( stacks )>= 3 else 1 )][0] )
-		currtime = datetime.now( timezone( Properties.TimeZone ) )
-		current = currtime.strftime( Logging.DATETIME_FORMAT )
-		if level in Logging.LEVELS:
-			status = Logging.LEVELS[level] if not isinstance( thread, str ) and thread <= 0 else thread
+		currtime = strftime( Logging.DateTimeFormat, timestamp() )
+		threading = CurrentThread() is not MainThread()
+		if level in Logging.Levels:
+			status = Logging.Levels[level]
 			match level:
-				case Logging.CRITICAL: ...
-				case Logging.DEBUG: ...
-				case Logging.ERROR:
+				case Logging.Critical: ...
+				case Logging.Debug: ...
+				case Logging.Error:
 					color = "\x1b[1;31m"
-				case Logging.FATAL: ...
-				case Logging.INFO: ...
-				case Logging.WARNING: ...
+				case Logging.Fatal: ...
+				case Logging.Info: ...
+				case Logging.Warning: ...
 				case _:
 					...
 			...
+		position = 0
+		if isinstance( thread, Int ) and thread >= 1 or \
+		   isinstance( thread, Str ) and thread:
+			position = 3 if len( stacks )>= 4 else 2
+			# position = 2 if len( stacks ) >= 3 else 1
+			if threading is True:
+				position = 2 if len( stacks )>= 4 else 1
+			formatter = Logging.MessageFormatThread \
+				if Properties.Environment is not None and \
+				   Properties.Environment == "production" else \
+				Logging.MessageFormatThreadComplex
+			if isinstance( thread, Str ):
+				status = "T"
+			...
 		else:
-			status = "U"
-		if not isinstance( thread, str ):
-			if thread <= 0:
-				formatter = Logging.MESSAGE_FORMAT if Properties.Environment is not None and Properties.Environment == "production" else Logging.MESSAGE_FORMAT_COMPLEX
-			else:
-				formatter = Logging.MESSAGE_FORMAT_THREAD if Properties.Environment is not None and Properties.Environment == "production" else Logging.MESSAGE_FORMAT_THREAD_COMPLEX
-		else:
-			formatter = Logging.MESSAGE_FORMAT  if Properties.Environment is not None and Properties.Environment == "production" else Logging.MESSAGE_FORMAT_COMPLEX
-			status = thread
+			position = 2 if len( stacks ) >= 3 else 1
+			formatter = Logging.MessageFormat \
+				if Properties.Environment is not None and \
+				   Properties.Environment == "production" else \
+				Logging.MessageFormatComplex
+		tiframe = getframeinfo( stacks[position][0] )
 		message = message if not args and not kwargs else message.format( *args, **kwargs )
 		messages = message.splitlines()
 		messages[0] = "".join([ color, messages[0], "\x1b[0m" ])
@@ -302,7 +316,7 @@ class Logging:
 			file=tiframe.filename.replace( f"{BASEPATH}/", "" ),
 			func=tiframe.function,
 			line=tiframe.lineno,
-			datetime=current,
+			datetime=currtime,
 			thread=thread,
 			color=color,
 			level=status
@@ -311,22 +325,18 @@ class Logging:
 			.replace( BASEPATH, "{society}" ) \
 			.replace( BASEVENV, "{virtual}" )
 		length = len( outputs.splitlines().pop() )
-		if Logging.PREVIOUS_LENGTH > length and start == "\x0d":
-			if Logging.PREVIOUS_LENGTH <= gts().columns:
-				outputs += "\x20" * ( Logging.PREVIOUS_LENGTH - length )
+		if Logging.PreviousLength > length and start == "\x0d":
+			if Logging.PreviousLength <= gts().columns:
+				outputs += "\x20" * ( Logging.PreviousLength - length )
 			else:
 				start = ""
-		Logging.PREVIOUS_LENGTH = length
-		if Logging.SAVE is True:
-			Logging.COUNTER += 1
-			fmode = "w" if Logging.COUNTER >= 10000 else "+a"
+		Logging.PreviousLength = length
+		if Logging.Store is True:
+			Logging.Counter += 1
+			fmode = "w" if Logging.Counter >= 10000 else "+a"
 			ftime = currtime.strftime( "%Y-%B-%d" )
 			fname = f"history/logging/society - {ftime}.log"
-			with open( fname, fmode ) as fopen:
-				fopen.write( f"{outputs}\n" )
-				fopen.close()
+			Storage.touch( fname, f"{outputs}\n", fmode )
 		puts( f"{start}{outputs}", end=end, close=close )
-		if close is not False:
-			exit( close )
-
+	
 	...	

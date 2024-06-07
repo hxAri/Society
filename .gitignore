@@ -8,14 +8,8 @@ __pycache__/
 properties.yaml
 properties.yml
 
-# Society History Files.
-history/**
-history/contents/**
-history/request/**
-
 # Society Virtual Environment.
 .virtual
-env
 
 # Society Idk Wtf is this.
 backups
@@ -25,4 +19,21 @@ objects
 *-backup.*
 
 # Society Resource Files.
-resources/**
+resources/*.html
+resources/*.json
+resources/anonym/**
+resources/contents/**/*/*.png
+resources/contents/**/*/*.jpg
+resources/contents/**/*/*.jpeg
+resources/contents/**/*/*.webp
+resources/contents/**/*/*.mp4
+resources/requests/*.json
+resources/requests/**/*/*.json
+resources/unmatched/*.html
+resources/unmatched/*.json
+resources/unmatched/**/*/*.html
+resources/unmatched/**/*/*.json
+resources/unparsed/*.html
+resources/unparsed/*.json
+resources/unparsed/**/*/*.html
+resources/unparsed/**/*/*.json
