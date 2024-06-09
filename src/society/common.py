@@ -22,37 +22,19 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
-from brotli import decompress as BrotliDecompress, error as BrotliError
 from builtins import bool as Bool, int as Int, str as Str
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from gzip import BadGzipFile, decompress as GzipDecompress
-from hashlib import md5
 from pytz import timezone
-from pyzstd import decompress as ZstdDecompress, ZstdError
 from random import choice
 from re import IGNORECASE, MULTILINE, S
 from re import compile, match, split, sub as substr
-from requests import Response, Session
-from requests.auth import HTTPBasicAuth, HTTPDigestAuth, HTTPProxyAuth
-from requests.exceptions import (
-	ConnectionError as RequestConnectionError, 
-	ConnectTimeout as RequestConnectionTimeout, 
-	RequestException as RequestError
-)
 from sys import exit as systemExit
 from time import sleep
-from typing import Any, MutableMapping, MutableSequence, Tuple, Union
+from typing import Any, MutableMapping, MutableSequence, Union
 from urllib.parse import urlparse, parse_qs as queryparse
-from urllib3.exceptions import (
-	ConnectionError as UrllibConnectionError,
-	ConnectTimeoutError as UrllibConnectTimeoutError,
-	RequestError as UrllibRequestError,
-	NewConnectionError as UrllibNewConnectionError
-)
 
 from society.patterns import Username
-from society.storage import Storage
 from society.typing.properties import Properties
 
 
@@ -228,38 +210,6 @@ def converter( readable:Str ) -> Int:
 def delays() -> None:
 	sleep( choice([ 1.3, 1.6, 1.9, 2, 2.2, 2.4, 2.6 ]) )
 
-def download( source:Str, mediaType:Str, directory:Str=None, proxies:MutableMapping[Str,Str]=None, stream:Bool=False, thread:Int=0 ) -> Str:
-
-	"""
-	Download media content e.g image, video
-
-	:params Str source
-		The media url source
-	:params Str mediaType
-		The file media type, e.g image, video
-	:params Str directory
-		The media directory save
-	:params MutableMapping<Str,Str> proxies
-		The Http request proxies
-	:params Bool stream
-		Allow request stream
-	:params Int thread
-		Current thread position number
-	
-	:return Str
-	"""
-	
-	response = request( "GET", url=source, proxies=proxies, stream=stream, thread=thread )
-	if response.status_code == 200:
-		extename = extension( response, mediaType, "jpg" if mediaType == "image" else "mp4" if mediaType == "video" else "", thread=thread )
-		pathname = directory if directory is not None else "history/contents"
-		filename = md5( source.encode( "utf-8" ) ).hexdigest()
-		fullname = f"{pathname}/{filename}.{extename}"
-		Storage.mkdir( pathname )
-		Storage.touch( fullname, response.content, fmode="wb" )
-		return fullname
-	return None
-
 def epochmillis( datestr:Str ) -> Int:
 
 	"""
@@ -272,32 +222,6 @@ def epochmillis( datestr:Str ) -> Int:
 	"""
 
 	return int( datetime.strptime( datestr, "%Y-%m-%dT%H:%M:%S%z" ).timestamp() * 1000 )
-
-def extension( response:Response, type:Str="image", default:Str="jpg", thread:Int=0 ) -> Str:
-
-	"""
-	Return file extension name by request response.
-
-	:params Response response
-	:params Str type
-		The file media type, e.g image, video
-	:params Str default
-		The default file extension name when the response is unknown Content-Type
-	:params Int thread
-		Current thread position number
-	
-	:return Str
-	"""
-	
-	contentType = response.headers['Content-Type']
-	matched = match( r"^(?:(?P<image>image)\/(?P<image_extension>jpg|jpeg|png|webp)|(?P<video>video\/(?P<video_extension>mp4|webm)))$", contentType )
-	if matched is not None:
-		groups = matched.groupdict()
-		group = f"{type}_extension"
-		if group in groups and groups[group]:
-			return groups[group]
-		return default
-	raise ValueError( f"Unsupported media type for Content-Type {contentType}", ( "thread", thread ) )
 
 def puts( *values:Any, base:Str="\x1b[0m", end:Str="\x0a", sep:Str="\x20", close:Union[Bool,Int]=False ) -> None:
 	
@@ -319,115 +243,6 @@ def puts( *values:Any, base:Str="\x1b[0m", end:Str="\x0a", sep:Str="\x20", close
 	if close is not False:
 		systemExit( close )
 	...
-
-def request( method:Str, url:Str, auth:Union[HTTPBasicAuth,HTTPDigestAuth,HTTPProxyAuth,Tuple[Str,Str]]=None, data:MutableMapping[Str,Any]=None, cookies:MutableMapping[Str,Str]=None, headers:MutableMapping[Str,Str]=None, params:MutableMapping[Str,Str]=None, payload:MutableMapping[Str,Any]=None, proxies:MutableMapping[Str,Str]=None, stream:Bool=False, timeout:Int=None, tries:Int=10, thread:Int=0 ) -> Response:
-	
-	"""
-	Send HTTP Request
-	
-	:params Str method
-		Http request method
-	:params Str url
-		Http request url target
-	:params HTTPBasicAuth|HTTPDigestAuth|HTTPProxyAuth|Tuple<Str,Str> auth
-		Http request authentication
-	:params MutableMapping<Str, Any> data
-		Http request multipart form data
-	:params MutableMapping<Str, Str> cookies
-		Http request cookies
-	:params MutableMapping<Str, Str> headers
-		Http request headers
-	:params MutableMapping<Str, Str> params
-		Http request parameters
-	:params MutableMapping<Str, Any> payload
-		Http request json payload data
-	:params MutableMapping<Str, Any> proxies
-		Http request proxies
-	:params Bool stream
-		Allow request stream
-	:params Int timeout
-		Http request timeout
-	:params Int tries
-		Http request timeout tries
-	:params Int thread
-		Current thread position number
-	
-	:return Response
-	"""
-	
-	counter = 0
-	session = Session()
-	throwned = []
-	throwable = [
-		RequestConnectionError, 
-		RequestConnectionTimeout, 
-		RequestError,
-		UrllibConnectionError,
-		UrllibConnectTimeoutError,
-		UrllibRequestError,
-		UrllibNewConnectionError
-	]
-	continueable = ( 
-		RequestConnectionError, 
-		RequestConnectionTimeout, 
-		UrllibConnectionError,
-		UrllibConnectTimeoutError,
-		UrllibNewConnectionError
-	)
-	if tries <= 0:
-		tries = 10
-	while counter <= 10:
-		# Logging.info( "Trying {} Request url=\"{}\"", method, url, thread=thread, start="\x0d" )
-		try:
-			response = session.request( 
-				url=url, 
-				data=data, 
-				auth=auth,
-				json=payload, 
-				stream=stream,
-				method=method, 
-				cookies=cookies, 
-				headers=headers, 
-				timeout=timeout,
-				proxies=proxies,
-				params=params 
-			)
-			try:
-				encoding = response.headers['Content-Encoding'] \
-					if "Content-Encoding" in response.headers \
-					else None
-				if encoding is not None:
-					content = response._content
-					match encoding:
-						case "br":
-							content = BrotliDecompress( response.content )
-						case "gzip":
-							content = GzipDecompress( response.content )
-						case "zstd":
-							content = ZstdDecompress( response.content )
-						case _:
-							raise UnicodeEncodeError( f"Unsupported encoding {encoding}" )
-					response._content = content
-				...
-			except BadGzipFile:
-				...
-			except BrotliError:
-				...
-			except ZstdError:
-				...
-			return response
-		except BaseException as e:
-			instance = type( e )
-			throwable.append( e )
-			if instance in throwable:
-				if isinstance( e, continueable ):
-					counter += 1
-					sleep( 2 )
-					continue
-			if throwned:
-				raise ExceptionGroup( f"An error occurred while sending a {method} request to url=\"{url}\"", throwned ) from e
-			raise TypeError( ( "prev", e ), ( "thread", thread ) ) from e
-	return None
 
 def serializeable( value:Any ) -> Bool:
 	
