@@ -23,7 +23,7 @@
 #
 
 from builtins import str as Str
-from typing import final
+from typing import final, Final
 
 
 @final
@@ -31,10 +31,11 @@ class Xpath:
 	
 	""" Facebook Xpath Typing Implementation """
 	
-	AnchorHome:Str = "/html/body/div[1]/div/div[1]/div/div[2]/div[4]/div/div[1]/div[1]/ul/li[1]/span/div/a"
-	ButtonLogin:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[2]/button"
-	FormLogin:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]"
-	InputEmail:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[1]/div[1]/input"
-	inputpassword:Str = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[1]/div[2]/div/input"
+	AnchorHome:Final[Str] = "/html/body/div[1]/div/div[1]/div/div[2]/div[4]/div/div[1]/div[1]/ul/li[1]/span/div/a"
+	ButtonLogin:Final[Str] = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[2]/button"
+	DivSavePassword:Final[Str] = "/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div[2]/div/div/div/div[3]/div/div[1]/div/div/div/div/div[3]/div/div[1]/div[1]/div/div[2]"
+	FormLogin:Final[Str] = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]"
+	InputEmail:Final[Str] = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[1]/div[1]/input"
+	inputpassword:Final[Str] = "/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[1]/div[2]/div/input"
 	
 	...
