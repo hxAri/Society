@@ -179,6 +179,7 @@ running=(
 	"parser"
 	"target"
 	"testing"
+	"token"
 )
 arguments=()
 if [[ "$action" == "" ]]; then
