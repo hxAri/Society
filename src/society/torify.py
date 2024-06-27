@@ -22,7 +22,7 @@
 # use it at your own risk, and this is Strictly not for SPAM.
 #
 
-from builtins import bool as Bool, int as Int, str as Str
+from builtins import int as Int, str as Str
 from requests.auth import HTTPProxyAuth
 from socks import ProxyConnectionError
 from stem.control import Controller
