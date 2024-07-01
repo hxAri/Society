@@ -222,7 +222,7 @@ def ThreadExecutor( name:Str, callback:Callable[[Any,Args,Kwargs,Int],Any], data
 	results:MutableSequence[Any] = []
 	futures:list[Future] = []
 	with ThreadPoolExecutor( thread_name_prefix=name, max_workers=worker ) as executor:
-		Logging.info( "Building ThreadPoolExecutor with {} workers for {}", worker, name, start="\x0d" )
+		Logging.info( "Building ThreadPoolExecutor with {} workers for {}", worker, name, start="\x0d", thread="T" )
 		try:
 			for count, data in enumerate( dataset ):
 				Logging.info( "Starting thread for {}", name, start="\x0d", thread=count+1 )
@@ -318,31 +318,27 @@ def ThreadRunner( loading:Str, success:Str=None, group=None, target:Callable[[Ar
 		thread = Threading( group=group, target=target, name=name, args=args, kwargs=kwargs )
 		thread.start()
 		while thread.is_alive():
-			try:
-				length = len( loading )
-				position = -1
-				for i in "\\|/-" * 16:
-					if position >= length:
-						position = -1
-					position += 1
-					messages = loading
-					if position >= 1:
-						messageChar = loading[position-1:position]
-						messageChar = messageChar.lower() \
-							if messageChar.isupper() \
-							else messageChar.upper()
-						messagePrefix = loading[0:position-1]
-						messageSuffix = loading[position:]
-						messages = "".join([
-							messagePrefix, 
-							messageChar, 
-							messageSuffix
-						])
-					Logging.info( "{}", messages, end="\x20", start="\x0d", thread=i )
-					sleep( 0.1 )
-			except ( EOFError, KeyboardInterrupt ):
-				...
-			...
+			length = len( loading )
+			position = -1
+			for i in "\\|/-" * 16:
+				if position >= length:
+					position = -1
+				position += 1
+				messages = loading
+				if position >= 1:
+					messageChar = loading[position-1:position]
+					messageChar = messageChar.lower() \
+						if messageChar.isupper() \
+						else messageChar.upper()
+					messagePrefix = loading[0:position-1]
+					messageSuffix = loading[position:]
+					messages = "".join([
+						messagePrefix, 
+						messageChar, 
+						messageSuffix
+					])
+				Logging.info( "{}", messages, end="\x20", start="\x0d", thread=i )
+				sleep( 0.1 )
 		Logging.info( "{}", success if success is not None else loading, end="\x0a", start="\x0d" )
 		return thread
 	except BaseException as e:
